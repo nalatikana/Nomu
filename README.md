@@ -1,4 +1,4 @@
-# Nomu Mystic Tarot
+# NOMU Daily Fortune
 
 ## Run in VS Code
 
@@ -8,7 +8,17 @@
 4. Open `http://127.0.0.1:5500/index.html` if the browser does not open automatically.
 5. Allow camera permission, then press `เปิดกล้อง`.
 
-The app is built as a single HTML file. Live Server is recommended because webcam access works more reliably from a local server than from a direct `file://` page.
+The app is built as a single HTML file with local assets. Live Server is recommended because webcam access works more reliably from a local server than from a direct `file://` page.
+
+## Admin settings
+
+Open the app and press **Admin** to edit card messages and rewards for the current browser. The demo admin code is:
+
+```text
+nomu
+```
+
+This is a GitHub Pages/static demo, so admin settings are stored in localStorage on the current device. For a real campaign across multiple devices, connect this screen to a backend or database.
 
 ## Put on GitHub Pages for mobile testing
 
@@ -16,8 +26,8 @@ Mobile browsers usually require HTTPS for webcam access. GitHub Pages gives you 
 
 ```powershell
 git init
-git add index.html README.md .nojekyll .vscode/settings.json .vscode/extensions.json
-git commit -m "Add Nomu Mystic Tarot web app"
+git add index.html README.md .nojekyll assets/nomu-card-back.jpg assets/nomu-card-front.jpg .vscode/settings.json .vscode/extensions.json
+git commit -m "Add NOMU Daily Fortune web app"
 git branch -M main
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
 git push -u origin main
