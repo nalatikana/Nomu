@@ -26,6 +26,8 @@
       --danger: #fb7185;
       --card-w: clamp(104px, 13vw, 172px);
       --card-h: calc(var(--card-w) * 1.4);
+      --card-back-image: url("assets/nomu-card-back.jpg");
+      --card-front-image: url("assets/nomu-card-front.jpg");
       font-family: "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
     }
 
@@ -239,7 +241,7 @@
       top: max(12px, env(safe-area-inset-top));
       left: 50%;
       transform: translateX(-50%);
-      width: min(1180px, calc(100vw - 24px));
+      width: min(1120px, calc(100vw - 24px));
       display: grid;
       grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
       align-items: center;
@@ -391,7 +393,7 @@
     }
 
     .card-back {
-      background: url("assets/nomu-card-back.jpg") center / cover no-repeat;
+      background: var(--card-back-image) center / cover no-repeat;
     }
 
     .card-back::before {
@@ -406,14 +408,19 @@
 
     .card-front {
       transform: rotateY(180deg);
-      background: url("assets/nomu-card-front.jpg") center / cover no-repeat;
+      background: var(--card-front-image) center / cover no-repeat;
     }
 
     .card-front img {
-      width: 100%;
-      height: 100%;
+      position: absolute;
+      left: 7.5%;
+      top: 15.3%;
+      width: 85%;
+      height: 39.4%;
       object-fit: cover;
       display: none;
+      border-radius: 7%;
+      z-index: 1;
     }
 
     .card-front.has-image img {
@@ -423,6 +430,7 @@
     .fortune-mini {
       position: absolute;
       inset: auto 9% 12%;
+      z-index: 2;
       display: grid;
       place-items: center;
       text-align: center;
@@ -439,7 +447,7 @@
     }
 
     .card-front.has-image {
-      background-image: url("assets/nomu-card-front.jpg");
+      background-image: var(--card-front-image);
     }
 
     .card-front.has-image .fortune-mini {
@@ -632,7 +640,7 @@
       left: 50%;
       bottom: max(14px, env(safe-area-inset-bottom));
       transform: translateX(-50%) translateY(130%);
-      width: min(760px, calc(100vw - 24px));
+      width: min(640px, calc(100vw - 24px));
       border: 1px solid rgba(248, 212, 119, .42);
       border-radius: 8px;
       background: linear-gradient(135deg, rgba(5, 2, 10, .9), rgba(39, 16, 62, .78));
@@ -862,6 +870,44 @@
         padding: 12px;
       }
     }
+
+    @media print {
+      body {
+        background: #fff !important;
+        overflow: visible;
+      }
+
+      .topbar,
+      .backdrop,
+      .video-panel,
+      .orb-cursor,
+      .reading,
+      .toast,
+      .loading,
+      .overlay,
+      .choice-modal,
+      .tarot-card:not(.selected-card) {
+        display: none !important;
+      }
+
+      .app,
+      .stage {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        perspective: none !important;
+      }
+
+      .tarot-card.selected-card {
+        position: static !important;
+        width: min(92vw, 480px) !important;
+        height: calc(min(92vw, 480px) * 1.4) !important;
+        margin: 0 auto !important;
+        transform: none !important;
+        filter: none !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -942,6 +988,17 @@
       </div>
     </section>
 
+    <section class="overlay" id="photoPrompt" aria-label="photo prompt">
+      <div class="panel">
+        <h2>ถ่ายรูปคู่แก้วก่อนมั้ย?</h2>
+        <p>ถ้าถ่ายตอนนี้ ภาพคู่กับมัทฉะแก้วโปรดของคุณจะถูกวางบนการ์ด Daily Fortune ตอนเปิดโชค</p>
+        <div class="panel-actions">
+          <button id="skipIntroPhoto" type="button">ยังไม่ถ่าย</button>
+          <button id="startIntroPhoto" type="button">เปิดกล้องเพื่อถ่าย</button>
+        </div>
+      </div>
+    </section>
+
     <section class="overlay" id="howToPlay" aria-label="how to play">
       <div class="panel">
         <h2>HOW TO PLAY</h2>
@@ -970,6 +1027,12 @@
           </label>
           <label>รางวัลพิเศษ แยกบรรทัดละ 1 รางวัล
             <textarea id="adminRewards"></textarea>
+          </label>
+          <label>ออกแบบหลังการ์ด
+            <input id="adminBackImage" type="file" accept="image/*">
+          </label>
+          <label>ออกแบบหน้าการ์ด
+            <input id="adminFrontImage" type="file" accept="image/*">
           </label>
           <label>รหัสแอดมิน
             <input id="adminCode" type="password" placeholder="ใส่รหัสเพื่อบันทึก">
@@ -1132,6 +1195,11 @@
       const adminMessages = document.getElementById("adminMessages");
       const adminRewards = document.getElementById("adminRewards");
       const adminCode = document.getElementById("adminCode");
+      const adminBackImage = document.getElementById("adminBackImage");
+      const adminFrontImage = document.getElementById("adminFrontImage");
+      const photoPrompt = document.getElementById("photoPrompt");
+      const startIntroPhoto = document.getElementById("startIntroPhoto");
+      const skipIntroPhoto = document.getElementById("skipIntroPhoto");
       const downloadCard = document.getElementById("downloadCard");
       const shareCard = document.getElementById("shareCard");
       const printCard = document.getElementById("printCard");
@@ -1144,6 +1212,7 @@
       let hovered = null;
       let selected = null;
       let pendingReveal = null;
+      let playerPhoto = "";
       let imageQueueIndex = 0;
       let customImages = [];
       let lastTrail = 0;
@@ -1163,17 +1232,37 @@
           .filter(Boolean);
       }
 
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function applyCardDesign() {
+        const back = localStorage.getItem("nomuCardBackImage") || "assets/nomu-card-back.jpg";
+        const front = localStorage.getItem("nomuCardFrontImage") || "assets/nomu-card-front.jpg";
+        document.documentElement.style.setProperty("--card-back-image", `url("${back}")`);
+        document.documentElement.style.setProperty("--card-front-image", `url("${front}")`);
+      }
+
       function loadSettings() {
         fortunes = readLines(localStorage.getItem("nomuFortuneMessages"));
         rewards = readLines(localStorage.getItem("nomuFortuneRewards"));
         if (!fortunes.length) fortunes = [...defaultFortunes];
         if (!rewards.length) rewards = [...defaultRewards];
+        playerPhoto = localStorage.getItem("nomuPlayerPhoto") || "";
+        applyCardDesign();
       }
 
       function syncAdminFields() {
         adminMessages.value = fortunes.join("\n");
         adminRewards.value = rewards.join("\n");
         adminCode.value = "";
+        adminBackImage.value = "";
+        adminFrontImage.value = "";
       }
 
       function maybeReward() {
@@ -1381,6 +1470,7 @@
       function revealCard(card) {
         if (selected) return;
         selected = card;
+        card.el.classList.add("selected-card");
         pendingReveal = card;
         cards.forEach(other => {
           if (other !== card) {
@@ -1401,18 +1491,20 @@
         aiText.textContent = reward
           ? `รางวัลพิเศษของคุณ: ${reward}`
           : aiFragments[Math.floor(Math.random() * aiFragments.length)];
+        if (playerPhoto) setCardImage(card, playerPhoto);
+        else clearCardImage(card);
         const fitScale = Math.min(
-          (innerWidth * .74) / card.el.offsetWidth,
-          (innerHeight * .76) / card.el.offsetHeight,
-          4.2
+          (innerWidth * (innerWidth < 820 ? .58 : .28)) / card.el.offsetWidth,
+          (innerHeight * .62) / card.el.offsetHeight,
+          innerWidth < 820 ? 2.8 : 2.35
         );
 
         gsap.timeline()
           .set(card.el, { zIndex: 9 })
           .to(card.el, {
             x: 0,
-            y: 0,
-            z: 560,
+            y: innerWidth < 820 ? -34 : -16,
+            z: 180,
             scale: fitScale,
             rotationX: 0,
             rotationY: 0,
@@ -1420,13 +1512,7 @@
             duration: .82,
             ease: "power4.inOut"
           })
-          .to(choiceModal, {
-            opacity: 1,
-            visibility: "visible",
-            duration: .24,
-            ease: "power2.out",
-            onStart: () => choiceModal.classList.add("visible")
-          }, "-=.08");
+          .call(() => finalizeReveal({ attach: Boolean(playerPhoto) }));
 
         burst(card.x, card.y);
       }
@@ -1659,7 +1745,7 @@
         gsap.set(choiceModal, { opacity: 0, visibility: "hidden" });
         cards.forEach(card => {
           card.revealed = false;
-          card.el.classList.remove("dragging", "hovered");
+          card.el.classList.remove("dragging", "hovered", "selected-card");
           gsap.killTweensOf([card.el, card.shell, card.glow]);
           gsap.set(card.el, { opacity: 1, scale: 1, filter: "none", zIndex: "" });
           gsap.set(card.shell, { rotationY: 0 });
@@ -1669,7 +1755,7 @@
         soundHooks.shuffle();
       }
 
-      function captureFromCamera(targetCard = null) {
+      function captureFromCamera(targetCard = null, storePlayerPhoto = false) {
         if (!video.videoWidth) {
           showToast("เปิดกล้องก่อน แล้วค่อยถ่ายภาพสำหรับหน้าไพ่");
           return false;
@@ -1682,14 +1768,31 @@
         ctx.scale(-1, 1);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const src = canvas.toDataURL("image/jpeg", .92);
+        if (storePlayerPhoto) {
+          playerPhoto = src;
+          localStorage.setItem("nomuPlayerPhoto", src);
+        }
         const target = targetCard || cards[imageQueueIndex % cards.length];
         setCardImage(target, src);
         if (!targetCard) imageQueueIndex++;
-        showToast("ถ่ายภาพจากกล้องและใส่บนการ์ดแล้ว");
+        showToast(storePlayerPhoto ? "บันทึกรูปคู่แก้วสำหรับการ์ดแล้ว" : "ถ่ายภาพจากกล้องและใส่บนการ์ดแล้ว");
         return true;
       }
 
       function wireEvents() {
+        async function enterExperience({ wantPhoto = false } = {}) {
+          hideOverlay(photoPrompt);
+          showToast(wantPhoto ? "กำลังเปิดกล้อง เตรียมถ่ายรูปคู่แก้วได้เลย" : "กำลังเปิดกล้องเพื่อเลือกการ์ด");
+          if (!camera) {
+            try {
+              await initHands();
+            } catch (error) {
+              console.error(error);
+              showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
+            }
+          }
+        }
+
         enterOrder.addEventListener("click", () => {
           const order = orderInput.value.trim();
           if (!order) {
@@ -1700,7 +1803,7 @@
           localStorage.setItem("nomuCurrentOrder", order);
           orderBadge.textContent = `Order: ${order}`;
           hideOverlay(orderGate);
-          showToast("เข้าสู่ระบบแล้ว ถ่ายรูปหรือเลือกการ์ดได้เลย");
+          showOverlay(photoPrompt);
         });
         orderInput.addEventListener("keydown", event => {
           if (event.key === "Enter") enterOrder.click();
@@ -1708,12 +1811,14 @@
         howToPlayBtn.addEventListener("click", () => showOverlay(howToPlay));
         openHowFromGate.addEventListener("click", () => showOverlay(howToPlay));
         closeHowToPlay.addEventListener("click", () => hideOverlay(howToPlay));
+        startIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: true }));
+        skipIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: false }));
         adminBtn.addEventListener("click", () => {
           syncAdminFields();
           showOverlay(adminPanel);
         });
         closeAdmin.addEventListener("click", () => hideOverlay(adminPanel));
-        saveAdmin.addEventListener("click", () => {
+        saveAdmin.addEventListener("click", async () => {
           if (adminCode.value !== "nomu") {
             showToast("รหัสแอดมินไม่ถูกต้อง");
             return;
@@ -1726,6 +1831,12 @@
           }
           localStorage.setItem("nomuFortuneMessages", nextMessages.join("\n"));
           localStorage.setItem("nomuFortuneRewards", nextRewards.join("\n"));
+          if (adminBackImage.files[0]) {
+            localStorage.setItem("nomuCardBackImage", await fileToDataUrl(adminBackImage.files[0]));
+          }
+          if (adminFrontImage.files[0]) {
+            localStorage.setItem("nomuCardFrontImage", await fileToDataUrl(adminFrontImage.files[0]));
+          }
           loadSettings();
           hideOverlay(adminPanel);
           resetDeck();
@@ -1735,6 +1846,8 @@
         resetAdmin.addEventListener("click", () => {
           localStorage.removeItem("nomuFortuneMessages");
           localStorage.removeItem("nomuFortuneRewards");
+          localStorage.removeItem("nomuCardBackImage");
+          localStorage.removeItem("nomuCardFrontImage");
           loadSettings();
           syncAdminFields();
           resetDeck();
@@ -1749,7 +1862,7 @@
           showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
           status.textContent = "กล้องยังไม่พร้อม";
         }));
-        captureCard.addEventListener("click", captureFromCamera);
+        captureCard.addEventListener("click", () => captureFromCamera(null, true));
         attachPhoto.addEventListener("click", async () => {
           if (!pendingReveal) return;
           if (!video.videoWidth && !camera) {
