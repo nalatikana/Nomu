@@ -12,7 +12,7 @@ The app is built as a single HTML file with local assets. Live Server is recomme
 
 ## Admin settings
 
-Open the app and press **Admin** to edit card messages and rewards for the current browser. The demo admin code is:
+Open the app and press **Admin** to edit card messages, rewards, and upload custom front/back card designs for the current browser. The demo admin code is:
 
 ```text
 nomu
