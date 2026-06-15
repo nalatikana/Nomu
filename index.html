@@ -6,28 +6,32 @@
   <title>NOMU Daily Fortune</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Raleway:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <link rel="preconnect" href="https://unpkg.com">
   <style>
     :root {
       color-scheme: dark;
       --bg: #000;
-      --panel: rgba(15, 9, 25, .74);
-      --panel-strong: rgba(8, 5, 14, .92);
+      --panel: rgba(8, 22, 18, .76);
+      --panel-strong: rgba(4, 12, 10, .94);
+      --matcha: #9ed66f;
+      --matcha-soft: #d7f7aa;
+      --matcha-deep: #355f2d;
       --violet: #a855f7;
       --violet-soft: #d8b4fe;
       --magenta: #f472b6;
       --cyan: #67e8f9;
-      --gold: #f8d477;
-      --gold-deep: #b8872f;
-      --ink: #f8f2ff;
-      --muted: #c4b5d8;
+      --gold: #ead18a;
+      --gold-deep: #9d7938;
+      --ink: #f6f7ee;
+      --muted: #c8d8bd;
       --danger: #fb7185;
       --card-w: clamp(104px, 13vw, 172px);
       --card-h: calc(var(--card-w) * 1.4);
-      --card-back-image: url("assets/nomu-card-back.jpg");
-      --card-front-image: url("assets/nomu-card-front.jpg");
+      --selected-card-w: min(30vw, 430px);
+      --card-back-image: url("nomu-card-back.jpg");
+      --card-front-image: url("nomu-card-front-template.jpg");
       font-family: "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
     }
 
@@ -46,16 +50,31 @@
     body {
       min-height: 100svh;
       background:
-        radial-gradient(circle at 51% 41%, rgba(255, 255, 255, .08), transparent 22%),
-        radial-gradient(circle at 22% 18%, rgba(95, 103, 132, .18), transparent 30%),
-        radial-gradient(circle at 84% 10%, rgba(248, 212, 119, .08), transparent 18%),
-        linear-gradient(180deg, #000, #030305 58%, #000);
+        radial-gradient(circle at 18% 22%, rgba(255, 255, 255, .86) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 14%, rgba(234, 209, 138, .78) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 62%, rgba(158, 214, 111, .62) 0 1px, transparent 2px),
+        radial-gradient(circle at 36% 76%, rgba(255, 255, 255, .58) 0 1px, transparent 2px),
+        radial-gradient(circle at 51% 41%, rgba(226, 232, 240, .15), transparent 24%),
+        radial-gradient(circle at 20% 20%, rgba(61, 117, 64, .28), transparent 34%),
+        radial-gradient(circle at 86% 10%, rgba(234, 209, 138, .12), transparent 20%),
+        radial-gradient(ellipse at 50% 100%, rgba(6, 38, 29, .82), transparent 52%),
+        linear-gradient(180deg, #020604 0%, #030a08 46%, #000 100%);
+      background-size:
+        260px 260px,
+        340px 340px,
+        420px 420px,
+        300px 300px,
+        auto,
+        auto,
+        auto,
+        auto,
+        auto;
     }
 
     button,
     label.file-button {
       border: 1px solid rgba(248, 212, 119, .42);
-      background: linear-gradient(180deg, rgba(248, 212, 119, .18), rgba(168, 85, 247, .13));
+      background: linear-gradient(180deg, rgba(234, 209, 138, .18), rgba(82, 130, 68, .18));
       color: var(--ink);
       min-height: 42px;
       border-radius: 8px;
@@ -63,7 +82,7 @@
       font: 600 13px/1 "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
       letter-spacing: 0;
       cursor: pointer;
-      box-shadow: 0 0 24px rgba(168, 85, 247, .16), inset 0 0 18px rgba(248, 212, 119, .08);
+      box-shadow: 0 0 24px rgba(158, 214, 111, .14), inset 0 0 18px rgba(234, 209, 138, .08);
       transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
       display: inline-flex;
       align-items: center;
@@ -76,7 +95,7 @@
     label.file-button:hover {
       transform: translateY(-1px);
       border-color: rgba(248, 212, 119, .78);
-      box-shadow: 0 0 32px rgba(168, 85, 247, .28), inset 0 0 22px rgba(248, 212, 119, .12);
+      box-shadow: 0 0 32px rgba(158, 214, 111, .25), inset 0 0 22px rgba(234, 209, 138, .12);
     }
 
     button:disabled {
@@ -125,23 +144,44 @@
       z-index: 0;
     }
 
+    .backdrop::before {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      left: -8%;
+      right: -8%;
+      bottom: -10%;
+      height: 42%;
+      background:
+        radial-gradient(ellipse at 12% 44%, rgba(255, 255, 255, .28), transparent 11%),
+        radial-gradient(ellipse at 28% 56%, rgba(0, 0, 0, .34), transparent 10%),
+        radial-gradient(ellipse at 48% 48%, rgba(255, 255, 255, .18), transparent 14%),
+        radial-gradient(ellipse at 70% 60%, rgba(0, 0, 0, .38), transparent 12%),
+        radial-gradient(ellipse at 86% 46%, rgba(255, 255, 255, .22), transparent 10%),
+        linear-gradient(180deg, rgba(238, 242, 247, .92) 0%, rgba(156, 163, 175, .78) 35%, rgba(37, 42, 54, .72) 72%, rgba(0, 0, 0, .98) 100%);
+      clip-path: polygon(0 32%, 7% 24%, 15% 27%, 22% 19%, 31% 25%, 39% 16%, 48% 23%, 58% 15%, 67% 24%, 76% 17%, 86% 25%, 94% 18%, 100% 27%, 100% 100%, 0 100%);
+      filter: contrast(1.18) saturate(.62);
+      opacity: .42;
+      pointer-events: none;
+    }
+
     .moon {
       position: absolute;
-      width: min(82vw, 980px);
+      width: min(90vw, 1120px);
       aspect-ratio: 1;
       left: 50%;
-      top: 53%;
+      top: 56%;
       transform: translate(-50%, -50%);
       border-radius: 50%;
       background:
-        radial-gradient(circle at 29% 68%, rgba(0, 0, 0, .92), transparent 7%),
-        radial-gradient(circle at 39% 54%, rgba(15, 15, 17, .82), transparent 8%),
-        radial-gradient(circle at 61% 44%, rgba(22, 22, 25, .7), transparent 5%),
-        radial-gradient(circle at 73% 31%, rgba(18, 18, 21, .64), transparent 4%),
-        radial-gradient(circle at 36% 37%, rgba(255, 255, 255, .72), transparent 4%),
-        radial-gradient(ellipse at 54% 52%, rgba(247, 248, 250, .92), rgba(154, 159, 171, .72) 31%, rgba(55, 58, 66, .52) 55%, transparent 72%);
-      filter: blur(.15px) saturate(.72) contrast(1.12);
-      opacity: .9;
+        radial-gradient(circle at 28% 68%, rgba(20, 23, 31, .82), transparent 7%),
+        radial-gradient(circle at 40% 54%, rgba(42, 45, 54, .66), transparent 8%),
+        radial-gradient(circle at 61% 44%, rgba(55, 58, 68, .55), transparent 5%),
+        radial-gradient(circle at 74% 31%, rgba(45, 48, 58, .48), transparent 4%),
+        radial-gradient(circle at 36% 36%, rgba(255, 255, 255, .82), transparent 4%),
+        radial-gradient(ellipse at 54% 50%, rgba(255, 255, 255, .96), rgba(190, 197, 211, .82) 32%, rgba(82, 87, 101, .58) 57%, transparent 73%);
+      filter: blur(.08px) saturate(.86) contrast(1.18);
+      opacity: .96;
       animation: moonPulse 8s ease-in-out infinite;
     }
 
@@ -158,11 +198,11 @@
     .moon::after {
       content: "";
       position: absolute;
-      inset: -12%;
+      inset: -16%;
       border-radius: inherit;
-      background: radial-gradient(circle at 52% 58%, transparent 0 56%, rgba(255, 255, 255, .24) 57%, transparent 61%);
-      filter: blur(10px);
-      opacity: .46;
+      background: radial-gradient(circle at 52% 58%, transparent 0 55%, rgba(255, 255, 255, .34) 57%, rgba(168, 85, 247, .14) 61%, transparent 67%);
+      filter: blur(12px);
+      opacity: .62;
     }
 
     .ring {
@@ -221,8 +261,8 @@
     .particle {
       width: 6px;
       height: 6px;
-      background: var(--gold);
-      box-shadow: 0 0 16px var(--gold), 0 0 34px rgba(168, 85, 247, .7);
+      background: var(--matcha-soft);
+      box-shadow: 0 0 16px var(--matcha-soft), 0 0 34px rgba(234, 209, 138, .38);
       opacity: .62;
       animation: floatDust var(--dur, 10s) linear infinite;
     }
@@ -231,13 +271,13 @@
       width: 12px;
       height: 12px;
       transform: translate(-50%, -50%);
-      background: radial-gradient(circle, rgba(248, 212, 119, .95), rgba(168, 85, 247, .46) 45%, transparent 72%);
+      background: radial-gradient(circle, rgba(234, 209, 138, .96), rgba(158, 214, 111, .54) 45%, transparent 72%);
       filter: blur(.2px);
     }
 
     .topbar {
       position: absolute;
-      z-index: 6;
+      z-index: 14;
       top: max(12px, env(safe-area-inset-top));
       left: 50%;
       transform: translateX(-50%);
@@ -247,11 +287,11 @@
       align-items: center;
       gap: 12px;
       padding: 10px;
-      border: 1px solid rgba(216, 180, 254, .18);
+      border: 1px solid rgba(158, 214, 111, .2);
       border-radius: 8px;
-      background: linear-gradient(135deg, rgba(0, 0, 0, .7), rgba(17, 16, 20, .5));
+      background: linear-gradient(135deg, rgba(0, 0, 0, .72), rgba(8, 22, 18, .58));
       backdrop-filter: blur(18px);
-      box-shadow: 0 12px 44px rgba(0, 0, 0, .35);
+      box-shadow: 0 12px 44px rgba(0, 0, 0, .36), inset 0 0 28px rgba(158, 214, 111, .035);
     }
 
     .brand {
@@ -262,16 +302,44 @@
     }
 
     .sigil {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
+      position: relative;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       background:
-        linear-gradient(90deg, transparent 47%, rgba(248, 212, 119, .9) 48% 52%, transparent 53%),
-        linear-gradient(0deg, transparent 47%, rgba(248, 212, 119, .9) 48% 52%, transparent 53%),
-        radial-gradient(circle, rgba(168, 85, 247, .9), rgba(5, 2, 10, .8) 62%);
-      border: 1px solid rgba(248, 212, 119, .62);
-      box-shadow: 0 0 24px rgba(168, 85, 247, .55);
+        radial-gradient(ellipse at 50% 30%, rgba(245, 255, 223, .95) 0 12%, transparent 13%),
+        radial-gradient(ellipse at 50% 30%, rgba(215, 247, 170, .95) 0 34%, rgba(126, 173, 83, .95) 35% 58%, rgba(45, 78, 43, .95) 59%),
+        linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .02));
+      border: 1px solid rgba(215, 247, 170, .7);
+      box-shadow: 0 0 24px rgba(158, 214, 111, .48), inset 0 0 12px rgba(234, 209, 138, .16);
       flex: 0 0 auto;
+    }
+
+    .sigil::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      right: 7px;
+      bottom: 7px;
+      height: 18px;
+      border-radius: 4px 4px 9px 9px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .5), transparent 32%),
+        linear-gradient(90deg, rgba(215, 247, 170, .92), rgba(92, 137, 62, .95));
+      border: 1px solid rgba(245, 255, 223, .65);
+      box-shadow: inset 0 -7px 10px rgba(25, 61, 33, .34);
+    }
+
+    .sigil::after {
+      content: "";
+      position: absolute;
+      right: 2px;
+      bottom: 12px;
+      width: 9px;
+      height: 12px;
+      border: 2px solid rgba(215, 247, 170, .62);
+      border-left: 0;
+      border-radius: 0 8px 8px 0;
     }
 
     h1 {
@@ -280,7 +348,7 @@
       line-height: 1;
       letter-spacing: 0;
       color: #f8f5ef;
-      text-shadow: 0 0 18px rgba(248, 212, 119, .38), 0 0 36px rgba(168, 85, 247, .42);
+      text-shadow: 0 0 18px rgba(215, 247, 170, .32), 0 0 36px rgba(234, 209, 138, .22);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -337,8 +405,8 @@
       margin: -17px 0 0 -17px;
       border-radius: 50%;
       pointer-events: none;
-      background: radial-gradient(circle, rgba(255, 255, 255, .92) 0 10%, rgba(248, 212, 119, .78) 15% 28%, rgba(168, 85, 247, .5) 45%, transparent 72%);
-      box-shadow: 0 0 20px rgba(248, 212, 119, .75), 0 0 42px rgba(168, 85, 247, .62);
+      background: radial-gradient(circle, rgba(255, 255, 255, .92) 0 10%, rgba(234, 209, 138, .78) 15% 28%, rgba(158, 214, 111, .5) 45%, transparent 72%);
+      box-shadow: 0 0 20px rgba(234, 209, 138, .62), 0 0 42px rgba(158, 214, 111, .5);
       opacity: .92;
       transform: scale(.78);
       transition: opacity .2s ease, transform .16s ease;
@@ -346,7 +414,7 @@
 
     .orb-cursor.pinching {
       transform: scale(1.38);
-      background: radial-gradient(circle, #fff 0 9%, rgba(103, 232, 249, .94) 14% 26%, rgba(248, 212, 119, .74) 38%, transparent 72%);
+      background: radial-gradient(circle, #fff 0 9%, rgba(215, 247, 170, .94) 14% 26%, rgba(234, 209, 138, .74) 38%, transparent 72%);
     }
 
     .tarot-card {
@@ -369,6 +437,11 @@
     .tarot-card.dragging {
       z-index: 5;
       filter: drop-shadow(0 36px 42px rgba(0, 0, 0, .68));
+    }
+
+    .tarot-card.selected-card {
+      width: var(--selected-card-w);
+      height: calc(var(--selected-card-w) * 1.4);
     }
 
     .card-shell {
@@ -411,15 +484,22 @@
       background: var(--card-front-image) center / cover no-repeat;
     }
 
+    .card-back,
+    .card-front,
+    .card-front img {
+      image-rendering: auto;
+    }
+
     .card-front img {
       position: absolute;
-      left: 7.5%;
-      top: 15.3%;
-      width: 85%;
-      height: 39.4%;
+      left: 6.4%;
+      top: 14.6%;
+      width: 87.2%;
+      height: 45.2%;
       object-fit: cover;
+      object-position: center center;
       display: none;
-      border-radius: 7%;
+      border-radius: 4.6%;
       z-index: 1;
     }
 
@@ -429,16 +509,19 @@
 
     .fortune-mini {
       position: absolute;
-      inset: auto 9% 12%;
+      left: 11%;
+      right: 11%;
+      top: 69.6%;
       z-index: 2;
       display: grid;
       place-items: center;
       text-align: center;
-      min-height: 20%;
+      min-height: 11.6%;
       color: rgba(72, 72, 78, .9);
-      font-size: clamp(16px, 2.3vw, 30px);
-      line-height: 1.16;
-      font-weight: 500;
+      font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      font-size: clamp(11px, calc(var(--card-w) * .09), 17px);
+      line-height: 1.08;
+      font-weight: 600;
       text-shadow: none;
       padding: 0 4px;
       border: 0;
@@ -452,15 +535,18 @@
 
     .card-front.has-image .fortune-mini {
       display: grid;
-      inset: auto 9% 12%;
-      min-height: 20%;
+      left: 11%;
+      right: 11%;
+      top: 69.6%;
+      min-height: 11.6%;
       padding: 0 4px;
       border: 0;
       background: transparent;
       color: rgba(72, 72, 78, .9);
-      font-size: clamp(16px, 2.3vw, 30px);
-      font-weight: 500;
-      line-height: 1.16;
+      font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      font-size: clamp(11px, calc(var(--card-w) * .09), 17px);
+      font-weight: 600;
+      line-height: 1.08;
       text-shadow: none;
     }
 
@@ -538,7 +624,9 @@
       display: grid;
       place-items: center;
       padding: 18px;
-      background: radial-gradient(circle at 50% 44%, rgba(44, 44, 50, .48), rgba(0, 0, 0, .92) 64%);
+      background:
+        radial-gradient(circle at 50% 38%, rgba(215, 247, 170, .08), transparent 30%),
+        radial-gradient(circle at 50% 44%, rgba(31, 50, 40, .5), rgba(0, 0, 0, .92) 64%);
       backdrop-filter: blur(12px);
       opacity: 0;
       visibility: hidden;
@@ -552,14 +640,26 @@
       pointer-events: auto;
     }
 
+    .overlay.active-modal {
+      z-index: 18;
+    }
+
+    #adminLogin,
+    #adminPanel,
+    #downloadQrModal {
+      z-index: 24;
+    }
+
     .panel {
       width: min(760px, calc(100vw - 28px));
       max-height: calc(100svh - 34px);
       overflow: auto;
-      border: 1px solid rgba(235, 238, 244, .32);
+      border: 1px solid rgba(215, 247, 170, .24);
       border-radius: 8px;
-      background: linear-gradient(180deg, rgba(10, 10, 12, .94), rgba(0, 0, 0, .9));
-      box-shadow: 0 32px 90px rgba(0, 0, 0, .62), 0 0 44px rgba(248, 212, 119, .12);
+      background:
+        linear-gradient(180deg, rgba(8, 18, 14, .96), rgba(0, 0, 0, .92)),
+        radial-gradient(circle at 15% 0%, rgba(158, 214, 111, .12), transparent 34%);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, .62), 0 0 44px rgba(158, 214, 111, .12);
       padding: clamp(18px, 3vw, 28px);
     }
 
@@ -569,6 +669,7 @@
       font-size: clamp(28px, 5vw, 52px);
       line-height: 1.02;
       font-weight: 700;
+      text-shadow: 0 0 22px rgba(215, 247, 170, .16);
     }
 
     .panel h3 {
@@ -580,8 +681,95 @@
 
     .panel p {
       margin: 0 0 12px;
-      color: #c7c9d0;
+      color: #cbd8c5;
       line-height: 1.55;
+    }
+
+    #orderGate .panel {
+      width: min(760px, calc(100vw - 28px));
+      background:
+        radial-gradient(circle at 80% 18%, rgba(234, 209, 138, .1), transparent 24%),
+        radial-gradient(circle at 8% 0%, rgba(158, 214, 111, .12), transparent 32%),
+        linear-gradient(180deg, rgba(7, 18, 14, .96), rgba(0, 0, 0, .92));
+    }
+
+    #orderGate .panel h2::after {
+      content: "MATCHA FOR THE MODERN MIND.";
+      display: block;
+      margin-top: 10px;
+      color: var(--matcha-soft);
+      font-family: "Raleway", "Kanit", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.25;
+      opacity: .78;
+    }
+
+    .admin-entry {
+      position: absolute;
+      top: max(18px, env(safe-area-inset-top));
+      right: max(18px, env(safe-area-inset-right));
+      z-index: 2;
+      min-height: 36px;
+      padding: 0 12px;
+      border-color: rgba(215, 247, 170, .28);
+      background: rgba(5, 16, 12, .72);
+      color: rgba(246, 247, 238, .82);
+      box-shadow: 0 0 18px rgba(158, 214, 111, .12);
+      font-size: 12px;
+    }
+
+    .admin-login-panel {
+      width: min(560px, calc(100vw - 28px));
+    }
+
+    .qr-panel {
+      width: min(780px, calc(100vw - 28px));
+    }
+
+    .qr-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, .9fr) minmax(220px, 1fr);
+      gap: 16px;
+      align-items: stretch;
+      margin-top: 14px;
+    }
+
+    #qrPreview {
+      width: 100%;
+      max-height: min(58svh, 520px);
+      object-fit: contain;
+      border: 1px solid rgba(215, 247, 170, .2);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .qr-box {
+      display: grid;
+      place-items: center;
+      gap: 12px;
+      min-height: 260px;
+      padding: 18px;
+      border: 1px dashed rgba(234, 209, 138, .42);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .055);
+      text-align: center;
+    }
+
+    #downloadQrCanvas {
+      width: min(220px, 44vw);
+      height: min(220px, 44vw);
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    #qrStatus {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
     }
 
     .panel-grid {
@@ -626,12 +814,200 @@
       font-weight: 500;
     }
 
+    .admin-field {
+      display: grid;
+      gap: 8px;
+      color: #d8d9de;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .admin-field > span {
+      color: var(--matcha-soft);
+    }
+
+    .admin-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .admin-toggle {
+      display: flex !important;
+      grid-template-columns: none !important;
+      align-items: center;
+      gap: 10px !important;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid rgba(235, 238, 244, .18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .admin-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold);
+    }
+
+    .admin-note {
+      margin: -4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .admin-source {
+      display: none;
+    }
+
+    .admin-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .admin-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .admin-item.reward-item {
+      grid-template-columns: minmax(220px, 1fr) auto;
+      align-items: stretch;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(215, 247, 170, .18);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(215, 247, 170, .055), rgba(255, 255, 255, .025)),
+        linear-gradient(180deg, rgba(0, 0, 0, .08), rgba(0, 0, 0, .18));
+    }
+
+    .admin-item.reward-item > input[type="text"] {
+      height: 100%;
+      min-height: 54px;
+      background: rgba(255, 255, 255, .05);
+      border-color: rgba(215, 247, 170, .18);
+    }
+
+    .reward-controls {
+      display: grid;
+      grid-template-columns: auto 82px 54px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .reward-enabled {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: 13px;
+      white-space: nowrap;
+      min-height: 54px;
+      padding: 0 10px;
+      border: 1px solid rgba(215, 247, 170, .16);
+      border-radius: 8px;
+      background: rgba(158, 214, 111, .055);
+    }
+
+    .reward-enabled input {
+      width: 18px;
+      height: 18px;
+      min-height: 18px;
+      accent-color: var(--gold);
+    }
+
+    .reward-every {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .reward-every input {
+      min-height: 42px;
+      padding: 8px 10px;
+      text-align: center;
+      width: 82px;
+    }
+
+    .admin-item button {
+      min-width: 42px;
+      padding: 0 10px;
+    }
+
+    .reward-item button {
+      width: 54px;
+      min-height: 42px;
+      align-self: end;
+    }
+
     .panel-actions {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       justify-content: flex-end;
       margin-top: 16px;
+    }
+
+    .confirm-photo {
+      display: grid;
+      gap: 14px;
+    }
+
+    .confirm-photo img {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid rgba(235, 238, 244, .28);
+      background: rgba(255, 255, 255, .08);
+    }
+
+    #skipIntroPhoto {
+      display: none;
+    }
+
+    .photo-countdown {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-size: clamp(24px, 5vw, 46px);
+      font-weight: 800;
+      line-height: 1;
+      text-align: center;
+      text-shadow: 0 0 24px rgba(248, 212, 119, .32);
+    }
+
+    .selfie-preview {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid rgba(235, 238, 244, .28);
+      background: rgba(255, 255, 255, .08);
+      aspect-ratio: 4 / 3;
+    }
+
+    .selfie-preview video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .selfie-preview .photo-countdown {
+      position: absolute;
+      inset: 0;
+      min-height: 0;
+      background: radial-gradient(circle, rgba(0, 0, 0, .1), rgba(0, 0, 0, .42));
+      font-size: clamp(46px, 12vw, 108px);
     }
 
     .reading {
@@ -641,16 +1017,55 @@
       bottom: max(14px, env(safe-area-inset-bottom));
       transform: translateX(-50%) translateY(130%);
       width: min(640px, calc(100vw - 24px));
-      border: 1px solid rgba(248, 212, 119, .42);
+      border: 1px solid rgba(215, 247, 170, .32);
       border-radius: 8px;
-      background: linear-gradient(135deg, rgba(5, 2, 10, .9), rgba(39, 16, 62, .78));
+      background: linear-gradient(135deg, rgba(3, 10, 8, .92), rgba(19, 38, 24, .82));
       backdrop-filter: blur(18px);
-      box-shadow: 0 0 44px rgba(168, 85, 247, .38), inset 0 0 30px rgba(248, 212, 119, .06);
+      box-shadow: 0 0 44px rgba(158, 214, 111, .24), inset 0 0 30px rgba(234, 209, 138, .06);
       padding: 14px 16px 16px;
     }
 
     .reading.visible {
       transform: translateX(-50%) translateY(0);
+    }
+
+    .reading.card-only {
+      width: auto;
+      min-width: min(380px, calc(100vw - 24px));
+      padding: 8px;
+    }
+
+    .reading.card-only .reading-title,
+    .reading.card-only .fortune,
+    .reading.card-only .ai-reading {
+      display: none;
+    }
+
+    .reading.card-only .reading-actions {
+      margin-top: 0;
+      justify-content: center;
+    }
+
+    .reward-badge {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      margin: 0 0 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(234, 209, 138, .46);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(234, 209, 138, .18), rgba(158, 214, 111, .13));
+      color: #fff8df;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: 0 0 24px rgba(158, 214, 111, .2), inset 0 0 16px rgba(234, 209, 138, .08);
+    }
+
+    .reward-badge.visible {
+      display: flex;
     }
 
     .reading-title {
@@ -711,6 +1126,27 @@
     .video-panel canvas {
       position: absolute;
       inset: 0;
+    }
+
+    .photo-preview {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      display: block;
+      object-fit: cover;
+      border-top: 1px solid rgba(103, 232, 249, .24);
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .photo-preview[hidden] {
+      display: none;
+    }
+
+    .camera-status {
+      padding: 7px 8px 0;
+      color: var(--violet-soft);
+      font-size: 11px;
+      line-height: 1.35;
+      text-align: center;
     }
 
     .capture-row {
@@ -822,7 +1258,10 @@
     }
 
     @media (max-width: 820px) {
-      :root { --card-w: clamp(82px, 22vw, 118px); }
+      :root {
+        --card-w: clamp(82px, 22vw, 118px);
+        --selected-card-w: min(68vw, 360px);
+      }
 
       .topbar {
         grid-template-columns: 1fr;
@@ -865,9 +1304,70 @@
         grid-template-columns: 1fr;
       }
 
+      .qr-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-item.reward-item {
+        grid-template-columns: 1fr;
+      }
+
+      .reward-controls {
+        grid-template-columns: auto 82px 54px;
+        justify-content: end;
+      }
+
       .reading {
         bottom: 152px;
         padding: 12px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .reward-controls {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
+
+      .reward-item button {
+        width: 100%;
+      }
+    }
+
+    @media (min-width: 821px) and (max-width: 1366px) {
+      :root {
+        --card-w: clamp(112px, 14vw, 160px);
+        --selected-card-w: min(40vw, 440px);
+      }
+
+      .topbar {
+        width: min(960px, calc(100vw - 24px));
+        grid-template-columns: minmax(250px, 1fr) minmax(120px, .7fr) minmax(250px, 1fr);
+      }
+
+      .reading {
+        width: min(560px, calc(100vw - 36px));
+        max-height: 27svh;
+        overflow: auto;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        padding: 12px 14px 14px;
+      }
+
+      .reading.card-only {
+        width: auto;
+        max-height: none;
+        overflow: visible;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        padding: 8px;
+      }
+
+      .fortune {
+        font-size: clamp(22px, 3vw, 30px);
+      }
+
+      .reading-actions button {
+        min-height: 38px;
+        padding: 0 12px;
       }
     }
 
@@ -881,7 +1381,7 @@
       .backdrop,
       .video-panel,
       .orb-cursor,
-      .reading,
+        .reading,
       .toast,
       .loading,
       .overlay,
@@ -907,6 +1407,14 @@
         transform: none !important;
         filter: none !important;
       }
+
+      .tarot-card.selected-card .fortune-mini,
+      .tarot-card.selected-card .card-front.has-image .fortune-mini {
+        font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif !important;
+        font-size: clamp(19px, 4.8vw, 28px) !important;
+        line-height: 1.08 !important;
+        font-weight: 600 !important;
+      }
     }
   </style>
 </head>
@@ -930,7 +1438,6 @@
         <button id="howToPlayBtn" type="button" title="วิธีเล่น">HOW TO PLAY</button>
         <button id="startCamera" type="button" title="เปิดกล้องเพื่อติดตามมือ">เปิดกล้อง</button>
         <button id="shuffleCards" type="button" title="สับไพ่ใหม่">สับไพ่</button>
-        <button id="adminBtn" type="button" title="ตั้งค่าข้อความและรางวัล">Admin</button>
         <label class="file-button" for="deckUpload" title="เลือกรูปการ์ดที่ออกแบบเอง">เลือกรูปการ์ด</label>
         <input id="deckUpload" type="file" accept="image/*" multiple>
       </div>
@@ -943,6 +1450,8 @@
     <aside class="video-panel" aria-label="camera controls">
       <video id="inputVideo" playsinline muted></video>
       <canvas id="handCanvas"></canvas>
+      <img class="photo-preview" id="photoPreview" alt="latest card photo preview" hidden>
+      <div class="camera-status" id="cameraStatus">ถ่ายรูปก่อน แล้วแบมือ 5 นิ้วเพื่อเริ่มเล่น</div>
       <div class="capture-row">
         <button id="captureCard" type="button" title="ถ่ายภาพจากกล้องเพื่อใส่บนการ์ด">ถ่ายการ์ด</button>
         <label class="file-button" for="singleUpload" title="ใส่รูปบนการ์ดถัดไป">ใส่รูป</label>
@@ -956,10 +1465,12 @@
       <p class="reading-title">NOMU Daily Fortune</p>
       <p class="fortune" id="fortuneText"></p>
       <p class="ai-reading" id="aiText"></p>
+      <div class="reward-badge" id="rewardBadge" hidden></div>
       <div class="reading-actions">
         <button id="downloadCard" type="button">Download</button>
         <button id="shareCard" type="button">Share</button>
         <button id="printCard" type="button">Print</button>
+        <button id="homeCard" type="button">กลับหน้าแรก</button>
       </div>
     </section>
 
@@ -975,6 +1486,7 @@
     </section>
 
     <section class="overlay visible" id="orderGate" aria-label="order entry">
+      <button class="admin-entry" id="adminEntryBtn" type="button">Admin</button>
       <div class="panel">
         <h2>NOMU Daily Fortune</h2>
         <p>กรอกเลขใบเสร็จหรือรหัส order เพื่อเข้าสู่ระบบ แล้วเตรียมเรียกพลังมัทฉะของคุณ</p>
@@ -988,13 +1500,61 @@
       </div>
     </section>
 
+    <section class="overlay" id="adminLogin" aria-label="admin login">
+      <div class="panel admin-login-panel">
+        <h2>Admin Login</h2>
+        <p>สำหรับเจ้าหน้าที่ NOMU เท่านั้น</p>
+        <div class="panel-grid">
+          <input id="adminUser" type="text" autocomplete="username" placeholder="User">
+          <input id="adminPass" type="password" autocomplete="current-password" placeholder="Password">
+        </div>
+        <div class="panel-actions">
+          <button id="closeAdminLogin" type="button">ยกเลิก</button>
+          <button id="enterAdmin" type="button">เข้าสู่ Admin</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="downloadQrModal" aria-label="download qr">
+      <div class="panel qr-panel">
+        <h2>ดาวน์โหลดลงมือถือ</h2>
+        <p>สแกน QR เพื่อเปิดภาพนี้บนมือถืออีกเครื่อง ถ้ายังไม่มีลิงก์สาธารณะ ให้ใช้ปุ่ม Share แทน</p>
+        <div class="qr-layout">
+          <img id="qrPreview" alt="downloaded NOMU card preview">
+          <div class="qr-box">
+            <canvas id="downloadQrCanvas"></canvas>
+            <p id="qrStatus">กำลังเตรียม QR...</p>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button id="qrShareCard" type="button">Share</button>
+          <button id="qrCloseHome" type="button">กลับหน้าแรก</button>
+        </div>
+      </div>
+    </section>
+
     <section class="overlay" id="photoPrompt" aria-label="photo prompt">
       <div class="panel">
         <h2>ถ่ายรูปคู่แก้วก่อนมั้ย?</h2>
         <p>ถ้าถ่ายตอนนี้ ภาพคู่กับมัทฉะแก้วโปรดของคุณจะถูกวางบนการ์ด Daily Fortune ตอนเปิดโชค</p>
+        <div class="selfie-preview" id="selfiePreview">
+          <div class="photo-countdown" id="photoCountdown">กดพร้อมถ่าย</div>
+        </div>
         <div class="panel-actions">
           <button id="skipIntroPhoto" type="button">ยังไม่ถ่าย</button>
           <button id="startIntroPhoto" type="button">เปิดกล้องเพื่อถ่าย</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="photoConfirm" aria-label="photo confirmation">
+      <div class="panel confirm-photo">
+        <h2>ยืนยันรูปสำหรับการ์ด</h2>
+        <p>รูปนี้จะใช้เฉพาะรอบนี้ และจะถูกล้างเมื่อจบรอบ</p>
+        <img id="confirmPhotoPreview" alt="photo to use on card">
+        <div class="panel-actions">
+          <button id="retakeIntroPhoto" type="button">ถ่ายใหม่</button>
+          <button id="confirmIntroPhoto" type="button">ใช้รูปนี้</button>
         </div>
       </div>
     </section>
@@ -1022,21 +1582,19 @@
         <h2>Admin Settings</h2>
         <p>ตั้งค่าข้อความและรางวัลสำหรับเครื่องนี้ ข้อมูลจะถูกบันทึกใน browser ด้วย localStorage</p>
         <div class="admin-fields">
-          <label>ข้อความบนการ์ด แยกบรรทัดละ 1 ข้อ
-            <textarea id="adminMessages"></textarea>
-          </label>
-          <label>รางวัลพิเศษ แยกบรรทัดละ 1 รางวัล
-            <textarea id="adminRewards"></textarea>
-          </label>
-          <label>ออกแบบหลังการ์ด
-            <input id="adminBackImage" type="file" accept="image/*">
-          </label>
-          <label>ออกแบบหน้าการ์ด
-            <input id="adminFrontImage" type="file" accept="image/*">
-          </label>
-          <label>รหัสแอดมิน
-            <input id="adminCode" type="password" placeholder="ใส่รหัสเพื่อบันทึก">
-          </label>
+          <div class="admin-field">
+            <span>ข้อความบนการ์ด แยกเป็นอัน ๆ</span>
+            <textarea class="admin-source" id="adminMessages" placeholder="ข้อ 1&#10;ข้อ 2&#10;ข้อ 3"></textarea>
+            <div class="admin-list" id="adminMessageItems"></div>
+            <button id="addAdminMessage" type="button">เพิ่มข้อความ</button>
+          </div>
+          <div class="admin-field">
+            <span>รางวัล/ส่วนลด แยกเป็นอัน ๆ</span>
+            <textarea class="admin-source" id="adminRewards" placeholder="ส่วนลด 10%&#10;ส่วนลด 20%&#10;ฟรี Topping"></textarea>
+            <div class="admin-list" id="adminRewardItems"></div>
+            <button id="addAdminReward" type="button">เพิ่มรางวัล</button>
+          </div>
+          <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
         </div>
         <div class="panel-actions">
           <button id="resetAdmin" type="button">คืนค่าเดิม</button>
@@ -1062,6 +1620,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script>
     window.gsap ||= {
       to(targets, vars = {}) { applyVars(targets, vars); vars.onComplete?.(); return this; },
@@ -1140,6 +1699,7 @@
 
       let fortunes = [];
       let rewards = [];
+      let rewardRules = [];
 
       const aiFragments = [
         "พลังของไพ่ใบนี้ชี้ไปที่การค่อย ๆ กลับมาฟังเสียงตัวเอง วันนี้ไม่ต้องรีบตอบทุกอย่าง แค่เลือกหนึ่งก้าวที่ทำให้หัวใจเบาลงก็พอ",
@@ -1167,10 +1727,14 @@
       const reading = document.getElementById("reading");
       const fortuneText = document.getElementById("fortuneText");
       const aiText = document.getElementById("aiText");
+      const rewardBadge = document.getElementById("rewardBadge");
       const loading = document.getElementById("loading");
       const video = document.getElementById("inputVideo");
+      const videoPanel = document.querySelector(".video-panel");
       const handCanvas = document.getElementById("handCanvas");
       const handCtx = handCanvas.getContext("2d");
+      const photoPreview = document.getElementById("photoPreview");
+      const cameraStatus = document.getElementById("cameraStatus");
       const startCamera = document.getElementById("startCamera");
       const captureCard = document.getElementById("captureCard");
       const shuffleCards = document.getElementById("shuffleCards");
@@ -1188,21 +1752,41 @@
       const openHowFromGate = document.getElementById("openHowFromGate");
       const closeHowToPlay = document.getElementById("closeHowToPlay");
       const adminPanel = document.getElementById("adminPanel");
-      const adminBtn = document.getElementById("adminBtn");
+      const adminEntryBtn = document.getElementById("adminEntryBtn");
+      const adminLogin = document.getElementById("adminLogin");
+      const adminUser = document.getElementById("adminUser");
+      const adminPass = document.getElementById("adminPass");
+      const enterAdmin = document.getElementById("enterAdmin");
+      const closeAdminLogin = document.getElementById("closeAdminLogin");
       const closeAdmin = document.getElementById("closeAdmin");
       const saveAdmin = document.getElementById("saveAdmin");
       const resetAdmin = document.getElementById("resetAdmin");
       const adminMessages = document.getElementById("adminMessages");
       const adminRewards = document.getElementById("adminRewards");
-      const adminCode = document.getElementById("adminCode");
-      const adminBackImage = document.getElementById("adminBackImage");
-      const adminFrontImage = document.getElementById("adminFrontImage");
+      const adminMessageItems = document.getElementById("adminMessageItems");
+      const adminRewardItems = document.getElementById("adminRewardItems");
+      const addAdminMessage = document.getElementById("addAdminMessage");
+      const addAdminReward = document.getElementById("addAdminReward");
+      const adminRewardCounterText = document.getElementById("adminRewardCounterText");
       const photoPrompt = document.getElementById("photoPrompt");
+      const photoConfirm = document.getElementById("photoConfirm");
+      const confirmPhotoPreview = document.getElementById("confirmPhotoPreview");
+      const selfiePreview = document.getElementById("selfiePreview");
+      const photoCountdown = document.getElementById("photoCountdown");
       const startIntroPhoto = document.getElementById("startIntroPhoto");
       const skipIntroPhoto = document.getElementById("skipIntroPhoto");
+      const retakeIntroPhoto = document.getElementById("retakeIntroPhoto");
+      const confirmIntroPhoto = document.getElementById("confirmIntroPhoto");
       const downloadCard = document.getElementById("downloadCard");
       const shareCard = document.getElementById("shareCard");
       const printCard = document.getElementById("printCard");
+      const homeCard = document.getElementById("homeCard");
+      const downloadQrModal = document.getElementById("downloadQrModal");
+      const qrPreview = document.getElementById("qrPreview");
+      const downloadQrCanvas = document.getElementById("downloadQrCanvas");
+      const qrStatus = document.getElementById("qrStatus");
+      const qrShareCard = document.getElementById("qrShareCard");
+      const qrCloseHome = document.getElementById("qrCloseHome");
 
       let cards = [];
       let camera = null;
@@ -1213,6 +1797,14 @@
       let selected = null;
       let pendingReveal = null;
       let playerPhoto = "";
+      let pendingPhoto = "";
+      let currentReward = "";
+      let lastDownloadCanvas = null;
+      let resultResetTimer = null;
+      let photoReady = false;
+      let handGateReady = false;
+      let openHandFrames = 0;
+      let countdownTimer = null;
       let imageQueueIndex = 0;
       let customImages = [];
       let lastTrail = 0;
@@ -1225,11 +1817,274 @@
         gsap.to(toast, { opacity: 0, y: -8, duration: .35, delay: 2.8, ease: "power2.in" });
       }
 
+      function clearResultResetTimer() {
+        if (resultResetTimer) {
+          clearTimeout(resultResetTimer);
+          resultResetTimer = null;
+        }
+      }
+
+      function scheduleResultReset() {
+        clearResultResetTimer();
+        resultResetTimer = setTimeout(() => {
+          showToast("กลับไปหน้าแรกอัตโนมัติ");
+          restartExperience();
+        }, 60000);
+      }
+
+      function updatePhotoPreview() {
+        photoReady = Boolean(playerPhoto);
+        if (playerPhoto) {
+          photoPreview.src = playerPhoto;
+          photoPreview.hidden = false;
+        } else {
+          photoPreview.removeAttribute("src");
+          photoPreview.hidden = true;
+        }
+        updateCameraStatus();
+      }
+
+      function clearRoundPhoto() {
+        playerPhoto = "";
+        pendingPhoto = "";
+        photoReady = false;
+        handGateReady = false;
+        openHandFrames = 0;
+        updatePhotoPreview();
+      }
+
+      function grabCameraFrame() {
+        if (!video.videoWidth) return "";
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", .94);
+      }
+
+      function showSelfieVideo() {
+        if (video.parentElement !== selfiePreview) {
+          selfiePreview.insertBefore(video, photoCountdown);
+        }
+      }
+
+      function restoreVideoPanel() {
+        if (video.parentElement !== videoPanel) {
+          videoPanel.insertBefore(video, handCanvas);
+        }
+      }
+
+      function showPhotoConfirmation(src) {
+        pendingPhoto = src;
+        confirmPhotoPreview.src = src;
+        restoreVideoPanel();
+        hideOverlay(photoPrompt);
+        showOverlay(photoConfirm);
+      }
+
+      function confirmRoundPhoto() {
+        if (!pendingPhoto) return;
+        playerPhoto = pendingPhoto;
+        pendingPhoto = "";
+        updatePhotoPreview();
+        restoreVideoPanel();
+        hideOverlay(photoConfirm);
+        handGateReady = false;
+        openHandFrames = 0;
+        updateCameraStatus("แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่");
+      }
+
+      function canPlayCards() {
+        return photoReady && handGateReady;
+      }
+
+      function updateCameraStatus(message = "") {
+        if (message) {
+          cameraStatus.textContent = message;
+        } else if (!photoReady) {
+          cameraStatus.textContent = "กำลังรอรูป preview ก่อนเริ่มเล่น";
+        } else if (!handGateReady) {
+          cameraStatus.textContent = "แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่";
+        } else {
+          cameraStatus.textContent = "พร้อมเล่น: บีบนิ้วเพื่อหยิบไพ่";
+        }
+      }
+
+      function countOpenFingers(landmarks) {
+        const fingers = [
+          landmarks[8].y < landmarks[6].y - .015,
+          landmarks[12].y < landmarks[10].y - .015,
+          landmarks[16].y < landmarks[14].y - .015,
+          landmarks[20].y < landmarks[18].y - .015,
+          Math.abs(landmarks[4].x - landmarks[3].x) > .035
+        ];
+        return fingers.filter(Boolean).length;
+      }
+
       function readLines(value) {
         return String(value || "")
           .split(/\r?\n/)
           .map(line => line.trim())
           .filter(Boolean);
+      }
+
+      const storageFallback = {};
+
+      function storageGet(key) {
+        try {
+          return localStorage.getItem(key) ?? storageFallback[key] ?? null;
+        } catch (error) {
+          console.warn("storage read failed", key, error);
+          return storageFallback[key] ?? null;
+        }
+      }
+
+      function storageSet(key, value) {
+        storageFallback[key] = String(value);
+        try {
+          localStorage.setItem(key, String(value));
+          return true;
+        } catch (error) {
+          console.warn("storage write failed", key, error);
+          return false;
+        }
+      }
+
+      function storageRemove(key) {
+        delete storageFallback[key];
+        try {
+          localStorage.removeItem(key);
+          return true;
+        } catch (error) {
+          console.warn("storage remove failed", key, error);
+          return false;
+        }
+      }
+
+      function renderAdminList(container, values, placeholder) {
+        container.innerHTML = "";
+        const list = values.length ? values : [""];
+        list.forEach(value => {
+          const row = document.createElement("div");
+          row.className = "admin-item";
+          row.innerHTML = `
+            <input type="text" value="" placeholder="${placeholder}">
+            <button type="button">ลบ</button>
+          `;
+          const input = row.querySelector("input");
+          input.value = value;
+          row.querySelector("button").addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            row.remove();
+            if (!container.children.length) renderAdminList(container, [""], placeholder);
+          });
+          container.appendChild(row);
+        });
+      }
+
+      function getAdminList(container) {
+        return Array.from(container.querySelectorAll("input"))
+          .map(input => input.value.trim())
+          .filter(Boolean);
+      }
+
+      function addAdminListItem(container, placeholder) {
+        renderAdminList(container, [...getAdminList(container), ""], placeholder);
+        container.querySelector(".admin-item:last-child input")?.focus();
+      }
+
+      function normalizeRewardRule(rule, fallback = {}) {
+        const text = String(rule?.text ?? rule ?? fallback.text ?? "").trim();
+        return {
+          text,
+          enabled: Boolean(rule?.enabled ?? fallback.enabled ?? false),
+          every: Math.max(1, parseInt(rule?.every ?? fallback.every ?? 5, 10) || 5),
+          counter: Math.max(0, parseInt(rule?.counter ?? fallback.counter ?? 0, 10) || 0)
+        };
+      }
+
+      function renderRewardList(container, rules) {
+        container.innerHTML = "";
+        const list = rules.length ? rules : [normalizeRewardRule("")];
+        list.forEach(rule => {
+          const normalized = normalizeRewardRule(rule);
+          const row = document.createElement("div");
+          row.className = "admin-item reward-item";
+
+          const textInput = document.createElement("input");
+          textInput.type = "text";
+          textInput.value = normalized.text;
+          textInput.placeholder = "รางวัล/ส่วนลด";
+          textInput.dataset.rewardField = "text";
+
+          const enabledLabel = document.createElement("label");
+          enabledLabel.className = "reward-enabled";
+          const enabledInput = document.createElement("input");
+          enabledInput.type = "checkbox";
+          enabledInput.checked = normalized.enabled;
+          enabledInput.dataset.rewardField = "enabled";
+          enabledLabel.append(enabledInput, "เปิด");
+
+          const everyLabel = document.createElement("label");
+          everyLabel.className = "reward-every";
+          const everyInput = document.createElement("input");
+          everyInput.type = "number";
+          everyInput.min = "1";
+          everyInput.step = "1";
+          everyInput.inputMode = "numeric";
+          everyInput.value = String(normalized.every);
+          everyInput.dataset.rewardField = "every";
+          everyLabel.append("ทุกกี่คน", everyInput);
+
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.textContent = "ลบ";
+          removeButton.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            row.remove();
+            if (!container.children.length) renderRewardList(container, [normalizeRewardRule("")]);
+          });
+
+          const controls = document.createElement("div");
+          controls.className = "reward-controls";
+          controls.append(enabledLabel, everyLabel, removeButton);
+
+          row.dataset.counter = String(normalized.counter);
+          row.append(textInput, controls);
+          container.appendChild(row);
+        });
+      }
+
+      function getRewardRules(container) {
+        return Array.from(container.querySelectorAll(".reward-item"))
+          .map(row => {
+            const textInput = row.querySelector('[data-reward-field="text"]');
+            const enabledInput = row.querySelector('[data-reward-field="enabled"]');
+            const everyInput = row.querySelector('[data-reward-field="every"]');
+            return normalizeRewardRule({
+              text: textInput?.value,
+              enabled: enabledInput?.checked,
+              every: everyInput?.value,
+              counter: row.dataset.counter
+            });
+          })
+          .filter(rule => rule.text);
+      }
+
+      function addRewardRuleItem(container) {
+        renderRewardList(container, [...getRewardRules(container), normalizeRewardRule("")]);
+        container.querySelector(".reward-item:last-child input")?.focus();
+      }
+
+      function saveRewardRules() {
+        const okRules = storageSet("nomuRewardRules", JSON.stringify(rewardRules));
+        const okLegacy = storageSet("nomuFortuneRewards", rewardRules.map(rule => rule.text).join("\n"));
+        return okRules && okLegacy;
       }
 
       function fileToDataUrl(file) {
@@ -1242,32 +2097,65 @@
       }
 
       function applyCardDesign() {
-        const back = localStorage.getItem("nomuCardBackImage") || "assets/nomu-card-back.jpg";
-        const front = localStorage.getItem("nomuCardFrontImage") || "assets/nomu-card-front.jpg";
+        const savedBack = storageGet("nomuCardBackImage");
+        const savedFront = storageGet("nomuCardFrontImage");
+        const back = savedBack && !savedBack.includes("assets/nomu-card-back.jpg") ? savedBack : "nomu-card-back.jpg";
+        const front = savedFront && !savedFront.includes("assets/nomu-card-front.jpg") && !savedFront.includes("nomu-card-front.jpg") ? savedFront : "nomu-card-front-template.jpg";
         document.documentElement.style.setProperty("--card-back-image", `url("${back}")`);
         document.documentElement.style.setProperty("--card-front-image", `url("${front}")`);
       }
 
       function loadSettings() {
-        fortunes = readLines(localStorage.getItem("nomuFortuneMessages"));
-        rewards = readLines(localStorage.getItem("nomuFortuneRewards"));
+        fortunes = readLines(storageGet("nomuFortuneMessages"));
         if (!fortunes.length) fortunes = [...defaultFortunes];
-        if (!rewards.length) rewards = [...defaultRewards];
-        playerPhoto = localStorage.getItem("nomuPlayerPhoto") || "";
+        const legacyRewards = readLines(storageGet("nomuFortuneRewards"));
+        const legacyEnabled = storageGet("nomuRewardEnabled") === "true";
+        const legacyEvery = Math.max(1, parseInt(storageGet("nomuRewardEvery") || "5", 10) || 5);
+        const legacyCounter = Math.max(0, parseInt(storageGet("nomuRewardCounter") || "0", 10) || 0);
+        try {
+          rewardRules = JSON.parse(storageGet("nomuRewardRules") || "[]").map(normalizeRewardRule).filter(rule => rule.text);
+        } catch (error) {
+          rewardRules = [];
+        }
+        if (!rewardRules.length) {
+          rewardRules = (legacyRewards.length ? legacyRewards : defaultRewards)
+            .map((text, index) => normalizeRewardRule(text, {
+              enabled: legacyEnabled,
+              every: legacyEvery,
+              counter: index === 0 ? legacyCounter : 0
+            }));
+        }
+        rewards = rewardRules.map(rule => rule.text);
+        playerPhoto = "";
         applyCardDesign();
+        updatePhotoPreview();
       }
 
       function syncAdminFields() {
         adminMessages.value = fortunes.join("\n");
         adminRewards.value = rewards.join("\n");
-        adminCode.value = "";
-        adminBackImage.value = "";
-        adminFrontImage.value = "";
+        renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
+        renderRewardList(adminRewardItems, rewardRules);
+        const enabledCount = rewardRules.filter(rule => rule.enabled).length;
+        adminRewardCounterText.textContent = `โปรโมชั่นทั้งหมด ${rewardRules.length} รายการ | เปิดใช้งาน ${enabledCount} รายการ`;
       }
 
       function maybeReward() {
-        if (!rewards.length || Math.random() > .28) return "";
-        return rewards[Math.floor(Math.random() * rewards.length)];
+        const due = [];
+        rewardRules = rewardRules.map(rule => {
+          const next = normalizeRewardRule(rule);
+          if (!next.enabled) return next;
+          next.counter += 1;
+          if (next.counter >= next.every) {
+            next.counter = 0;
+            due.push(next.text);
+          }
+          return next;
+        });
+        saveRewardRules();
+        rewards = rewardRules.map(rule => rule.text);
+        if (!due.length) return "";
+        return due[Math.floor(Math.random() * due.length)];
       }
 
       function showOverlay(el) {
@@ -1357,13 +2245,16 @@
 
       function layoutCards(animate = true) {
         const usableTop = innerWidth < 820 ? 175 : 118;
+        const cardW = cards[0]?.el.offsetWidth || 120;
+        const cardH = cards[0]?.el.offsetHeight || cardW * 1.4;
+        const centerY = usableTop + (innerHeight - usableTop) * .46;
         cards.forEach((card, index) => {
           if (card === selected) return;
           const angle = (index / cards.length) * Math.PI * 2 - Math.PI / 2;
-          const radiusX = Math.min(innerWidth * .34, 450);
-          const radiusY = Math.min(Math.max((innerHeight - usableTop) * .28, 150), 250);
-          card.x = innerWidth / 2 + Math.cos(angle) * radiusX + rand(-20, 20);
-          card.y = usableTop + (innerHeight - usableTop) / 2 + Math.sin(angle) * radiusY + rand(-18, 18);
+          const radiusX = Math.min(innerWidth * .31, 420);
+          const radiusY = Math.min(Math.max((innerHeight - usableTop) * .22, 120), 205);
+          card.x = innerWidth / 2 + Math.cos(angle) * radiusX - cardW / 2 + rand(-18, 18);
+          card.y = centerY + Math.sin(angle) * radiusY - cardH / 2 + rand(-14, 14);
           card.rot = rand(-16, 16);
           card.z = rand(-120, 140);
           const vars = {
@@ -1424,6 +2315,10 @@
       }
 
       function beginDrag(card, x, y) {
+        if (!canPlayCards()) {
+          updateCameraStatus();
+          return false;
+        }
         if (selected) return;
         dragged = card;
         card.el.classList.add("dragging");
@@ -1487,23 +2382,38 @@
 
         const fortune = card.fortune;
         const reward = maybeReward();
+        currentReward = reward;
         fortuneText.textContent = fortune;
         aiText.textContent = reward
           ? `รางวัลพิเศษของคุณ: ${reward}`
           : aiFragments[Math.floor(Math.random() * aiFragments.length)];
+        rewardBadge.textContent = reward ? `สิทธิ์พิเศษ: ${reward}` : "";
+        rewardBadge.hidden = !reward;
+        rewardBadge.classList.toggle("visible", Boolean(reward));
         if (playerPhoto) setCardImage(card, playerPhoto);
         else clearCardImage(card);
+        reading.classList.add("card-only");
+        const isCompact = innerWidth < 820;
+        const isTablet = innerWidth >= 820 && innerWidth <= 1366;
+        const isWideTablet = isTablet && innerWidth > innerHeight;
+        const topClearance = isCompact ? 175 : 118;
+        const readingHeight = reading.offsetHeight || 60;
+        const bottomClearance = readingHeight + (isCompact ? 26 : isWideTablet ? 34 : isTablet ? 36 : 44);
+        const availableHeight = Math.max(260, innerHeight - topClearance - bottomClearance);
+        const targetCenterY = topClearance + availableHeight / 2;
         const fitScale = Math.min(
-          (innerWidth * (innerWidth < 820 ? .58 : .28)) / card.el.offsetWidth,
-          (innerHeight * .62) / card.el.offsetHeight,
-          innerWidth < 820 ? 2.8 : 2.35
+          (innerWidth * (isCompact ? .58 : isWideTablet ? .30 : isTablet ? .42 : .26)) / card.el.offsetWidth,
+          (availableHeight * .94) / card.el.offsetHeight,
+          isCompact ? 2.55 : isWideTablet ? 2.15 : isTablet ? 2.25 : 2.1
         );
+        const targetX = -card.el.offsetWidth / 2;
+        const targetY = targetCenterY - innerHeight / 2 - card.el.offsetHeight / 2;
 
         gsap.timeline()
           .set(card.el, { zIndex: 9 })
           .to(card.el, {
-            x: 0,
-            y: innerWidth < 820 ? -34 : -16,
+            x: targetX,
+            y: targetY,
             z: 180,
             scale: fitScale,
             rotationX: 0,
@@ -1514,7 +2424,7 @@
           })
           .call(() => finalizeReveal({ attach: Boolean(playerPhoto) }));
 
-        burst(card.x, card.y);
+        burst(card.x + card.el.offsetWidth / 2, card.y + card.el.offsetHeight / 2);
       }
 
       function finalizeReveal({ attach = false } = {}) {
@@ -1524,7 +2434,8 @@
         choiceModal.classList.remove("visible");
         gsap.to(choiceModal, { opacity: 0, visibility: "hidden", duration: .2, ease: "power2.out" });
         if (!attach) clearCardImage(card);
-        reading.classList.add("visible");
+        reading.classList.add("visible", "card-only");
+        scheduleResultReset();
         soundHooks.flip();
         gsap.timeline()
           .to(card.glow, { opacity: 1, scale: 1.3, duration: .38, ease: "power2.out" })
@@ -1536,7 +2447,151 @@
           .to(card.glow, { opacity: 0, scale: 2.4, duration: .7, ease: "power2.out" }, "-=.2");
       }
 
-      async function renderSelectedCard() {
+      function drawCenteredLines(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
+        const words = String(text || "").split(/\s+/).filter(Boolean);
+        const lines = [];
+        let line = "";
+        words.forEach(word => {
+          const next = line ? `${line} ${word}` : word;
+          if (ctx.measureText(next).width <= maxWidth || !line) {
+            line = next;
+          } else {
+            lines.push(line);
+            line = word;
+          }
+        });
+        if (line) lines.push(line);
+        lines.slice(0, maxLines).forEach((item, index) => {
+          ctx.fillText(item, x, y + index * lineHeight);
+        });
+        return Math.min(lines.length, maxLines) * lineHeight;
+      }
+
+      function drawCutLine(ctx, y, width) {
+        ctx.save();
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([12, 10]);
+        ctx.beginPath();
+        ctx.moveTo(22, y);
+        ctx.lineTo(width - 22, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = "700 18px Kanit, Arial, sans-serif";
+        ctx.fillStyle = "#111";
+        ctx.textAlign = "center";
+        ctx.fillText("ตัดตามเส้นนี้", width / 2, y - 10);
+        ctx.restore();
+      }
+
+      function composeReceiptCanvas(cardCanvas) {
+        const width = 576;
+        const pad = 24;
+        const cardWidth = width - pad * 2;
+        const cardHeight = Math.round(cardCanvas.height * (cardWidth / cardCanvas.width));
+        const couponHeight = currentReward ? 260 : 94;
+        const height = pad + cardHeight + pad + couponHeight + pad;
+        const receiptCanvas = document.createElement("canvas");
+        receiptCanvas.width = width;
+        receiptCanvas.height = height;
+        const ctx = receiptCanvas.getContext("2d");
+
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(cardCanvas, pad, pad, cardWidth, cardHeight);
+
+        const ticketY = pad + cardHeight + pad;
+        drawCutLine(ctx, ticketY + 14, width);
+
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 3;
+        const boxY = ticketY + 34;
+        const boxH = couponHeight - 40;
+        ctx.strokeRect(pad, boxY, width - pad * 2, boxH);
+
+        ctx.fillStyle = "#111";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = "800 30px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText("NOMU MATCHA TICKET", width / 2, boxY + 46);
+        ctx.font = "500 18px Kanit, Arial, sans-serif";
+        ctx.fillText(`Order: ${storageGet("nomuCurrentOrder") || "-"}`, width / 2, boxY + 78);
+
+        if (currentReward) {
+          ctx.font = "900 42px Kanit, Arial, sans-serif";
+          drawCenteredLines(ctx, currentReward, width / 2, boxY + 134, width - pad * 4, 48, 2);
+          ctx.font = "700 18px Kanit, Arial, sans-serif";
+          ctx.fillText("แสดงตั๋วนี้ให้พนักงานก่อนชำระเงิน", width / 2, boxY + boxH - 42);
+          ctx.font = "700 16px Raleway, Kanit, Arial, sans-serif";
+          ctx.fillText("MATCHA FOR THE MODERN MIND.", width / 2, boxY + boxH - 18);
+        } else {
+          ctx.font = "700 20px Kanit, Arial, sans-serif";
+          ctx.fillText("ขอบคุณที่ร่วมสนุกกับ NOMU", width / 2, boxY + 116);
+        }
+
+        return receiptCanvas;
+      }
+
+      async function canvasToFile(canvas, filename = "nomu-daily-fortune.png") {
+        return new Promise(resolve => {
+          canvas.toBlob(blob => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            resolve(new File([blob], filename, { type: "image/png" }));
+          }, "image/png");
+        });
+      }
+
+      async function getQrTargetFromCanvas(canvas) {
+        const configuredBuilder = window.NOMU_QR_URL_BUILDER;
+        if (typeof configuredBuilder === "function") {
+          const file = await canvasToFile(canvas);
+          return configuredBuilder({ file, canvas, order: storageGet("nomuCurrentOrder") || "" });
+        }
+
+        const dataUrl = canvas.toDataURL("image/png");
+        if (dataUrl.length <= 2500) return dataUrl;
+        return "";
+      }
+
+      async function showDownloadQr(canvas) {
+        lastDownloadCanvas = canvas;
+        const imageUrl = canvas.toDataURL("image/png");
+        qrPreview.src = imageUrl;
+        qrStatus.textContent = "กำลังเตรียม QR...";
+        const ctx = downloadQrCanvas.getContext("2d");
+        ctx.clearRect(0, 0, downloadQrCanvas.width, downloadQrCanvas.height);
+        showOverlay(downloadQrModal);
+
+        const qrTarget = await getQrTargetFromCanvas(canvas);
+        if (qrTarget && window.QRCode?.toCanvas) {
+          await QRCode.toCanvas(downloadQrCanvas, qrTarget, {
+            width: 220,
+            margin: 1,
+            color: { dark: "#0b0f0c", light: "#ffffff" }
+          });
+          qrStatus.textContent = "สแกนเพื่อเปิดภาพนี้บนมือถือ";
+          return;
+        }
+
+        downloadQrCanvas.width = 220;
+        downloadQrCanvas.height = 220;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 220, 220);
+        ctx.fillStyle = "#111111";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "700 18px Kanit, Arial, sans-serif";
+        ctx.fillText("ใช้ Share", 110, 98);
+        ctx.font = "500 13px Kanit, Arial, sans-serif";
+        ctx.fillText("หรือเชื่อมระบบฝากไฟล์", 110, 126);
+        qrStatus.textContent = "QR เปิดบนมือถืออีกเครื่องต้องมี URL สาธารณะก่อน เพราะรูปใหญ่เกินกว่าจะฝังใน QR ได้";
+      }
+
+      async function renderSelectedCard({ receipt = false } = {}) {
         if (!selected) {
           showToast("เลือกการ์ดก่อน");
           return null;
@@ -1545,25 +2600,42 @@
           showToast("ยังโหลดระบบดาวน์โหลดไม่เสร็จ");
           return null;
         }
-        return html2canvas(selected.el, {
+        const cardCanvas = await html2canvas(selected.el, {
           backgroundColor: null,
           scale: Math.min(3, window.devicePixelRatio || 1.5),
           useCORS: true
         });
+        if (receipt) return composeReceiptCanvas(cardCanvas);
+        if (!currentReward) return cardCanvas;
+        const footerHeight = Math.max(112, Math.round(cardCanvas.width * .18));
+        const receiptCanvas = document.createElement("canvas");
+        receiptCanvas.width = cardCanvas.width;
+        receiptCanvas.height = cardCanvas.height + footerHeight;
+        const ctx = receiptCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, receiptCanvas.width, receiptCanvas.height);
+        ctx.drawImage(cardCanvas, 0, 0);
+        ctx.fillStyle = "#111111";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `700 ${Math.max(32, Math.round(cardCanvas.width * .055))}px Kanit, Arial, sans-serif`;
+        ctx.fillText(`สิทธิ์พิเศษ: ${currentReward}`, receiptCanvas.width / 2, cardCanvas.height + footerHeight / 2);
+        return receiptCanvas;
       }
 
       async function downloadSelectedCard() {
         const canvas = await renderSelectedCard();
         if (!canvas) return;
         const link = document.createElement("a");
-        const order = (localStorage.getItem("nomuCurrentOrder") || "daily").replace(/[^\w-]/g, "");
+        const order = (storageGet("nomuCurrentOrder") || "daily").replace(/[^\w-]/g, "");
         link.download = `nomu-daily-fortune-${order}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
+        await showDownloadQr(canvas);
       }
 
       async function shareSelectedCard() {
-        const canvas = await renderSelectedCard();
+        const canvas = lastDownloadCanvas || await renderSelectedCard();
         if (!canvas) return;
         canvas.toBlob(async blob => {
           const file = new File([blob], "nomu-daily-fortune.png", { type: "image/png" });
@@ -1573,18 +2645,50 @@
               text: fortuneText.textContent,
               files: [file]
             });
+            restartExperience();
           } else {
             downloadSelectedCard();
           }
         }, "image/png");
       }
 
-      function printSelectedCard() {
-        if (!selected) {
-          showToast("เลือกการ์ดก่อน");
-          return;
-        }
-        window.print();
+      async function printSelectedCard() {
+        const canvas = await renderSelectedCard({ receipt: true });
+        if (!canvas) return;
+        const imageUrl = canvas.toDataURL("image/png");
+        const frame = document.createElement("iframe");
+        frame.style.position = "fixed";
+        frame.style.right = "0";
+        frame.style.bottom = "0";
+        frame.style.width = "0";
+        frame.style.height = "0";
+        frame.style.border = "0";
+        document.body.appendChild(frame);
+        const printDoc = frame.contentDocument;
+        const style = printDoc.createElement("style");
+        style.textContent = "@page{size:80mm auto;margin:0}html,body{width:80mm;margin:0;padding:0;background:#fff}img{width:80mm;height:auto;display:block;page-break-inside:avoid}";
+        const image = printDoc.createElement("img");
+        image.src = imageUrl;
+        image.alt = "NOMU Daily Fortune";
+        printDoc.documentElement.style.margin = "0";
+        printDoc.documentElement.style.padding = "0";
+        printDoc.body.style.margin = "0";
+        printDoc.body.style.padding = "0";
+        printDoc.body.style.background = "#fff";
+        printDoc.head.appendChild(style);
+        image.style.width = "80mm";
+        image.style.height = "auto";
+        image.style.display = "block";
+        printDoc.title = "NOMU Daily Fortune";
+        printDoc.body.appendChild(image);
+        image.onload = () => {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          setTimeout(() => {
+            frame.remove();
+            restartExperience();
+          }, 700);
+        };
       }
 
       function burst(x, y) {
@@ -1607,12 +2711,19 @@
       }
 
       function updateHover() {
+        if (!canPlayCards()) {
+          if (hovered) hovered.el.classList.remove("hovered");
+          hovered = null;
+          return;
+        }
         if (!pointer.active || selected || dragged) return;
         let nearest = null;
         let minDist = Infinity;
         const hitRadius = Math.max((cards[0]?.el.offsetWidth || 120) * .72, 82);
         cards.forEach(card => {
-          const dist = Math.hypot(pointer.x - card.x, pointer.y - card.y);
+          const centerX = card.x + card.el.offsetWidth / 2;
+          const centerY = card.y + card.el.offsetHeight / 2;
+          const dist = Math.hypot(pointer.x - centerX, pointer.y - centerY);
           if (dist < hitRadius && dist < minDist) {
             nearest = card;
             minDist = dist;
@@ -1700,6 +2811,7 @@
         status.textContent = "กล้องพร้อมแล้ว บีบนิ้วโป้งกับนิ้วชี้เพื่อเลือกไพ่";
         startCamera.disabled = true;
         resizeCanvas();
+        return true;
       }
 
       function onHandResults(results) {
@@ -1711,6 +2823,12 @@
         handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
         if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
           const landmarks = results.multiHandLandmarks[0];
+          const openFingerCount = countOpenFingers(landmarks);
+          openHandFrames = openFingerCount >= 5 ? openHandFrames + 1 : 0;
+          if (!handGateReady && openHandFrames >= 8) {
+            handGateReady = true;
+            updateCameraStatus("พร้อมเล่น: เห็นมือครบ 5 นิ้วแล้ว");
+          }
           if (window.drawConnectors && window.HAND_CONNECTIONS) {
             drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, { color: "rgba(248, 212, 119, .8)", lineWidth: 2 });
             drawLandmarks(handCtx, landmarks, { color: "rgba(103, 232, 249, .85)", lineWidth: 1, radius: 2 });
@@ -1720,12 +2838,20 @@
           const mappedX = (1 - indexTip.x) * innerWidth;
           const mappedY = indexTip.y * innerHeight;
           const pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+          if (!canPlayCards()) {
+            setPointer(mappedX, mappedY, false);
+            setPinch(false);
+            updateCameraStatus();
+            handCtx.restore();
+            return;
+          }
           setPointer(mappedX, mappedY, true);
           updateHover();
           if (dragged) dragCard(mappedX, mappedY);
           setPinch(pinchDistance < .055);
           status.textContent = pointer.pinching ? "กำลังถือไพ่ ปล่อยนิ้วเพื่อเปิดคำทำนาย" : "เลื่อนนิ้วชี้เหนือไพ่ แล้วบีบเพื่อหยิบ";
         } else {
+          openHandFrames = 0;
           setPointer(pointer.x, pointer.y, false);
           setPinch(false);
           if (hovered) hovered.el.classList.remove("hovered");
@@ -1736,16 +2862,25 @@
       }
 
       function resetDeck() {
+        clearResultResetTimer();
         selected = null;
         pendingReveal = null;
         dragged = null;
         hovered = null;
-        reading.classList.remove("visible");
+        currentReward = "";
+        lastDownloadCanvas = null;
+        rewardBadge.textContent = "";
+        rewardBadge.hidden = true;
+        rewardBadge.classList.remove("visible");
+        clearRoundPhoto();
+        reading.classList.remove("visible", "card-only");
         choiceModal.classList.remove("visible");
+        photoConfirm.classList.remove("visible");
         gsap.set(choiceModal, { opacity: 0, visibility: "hidden" });
         cards.forEach(card => {
           card.revealed = false;
           card.el.classList.remove("dragging", "hovered", "selected-card");
+          clearCardImage(card);
           gsap.killTweensOf([card.el, card.shell, card.glow]);
           gsap.set(card.el, { opacity: 1, scale: 1, filter: "none", zIndex: "" });
           gsap.set(card.shell, { rotationY: 0 });
@@ -1755,7 +2890,23 @@
         soundHooks.shuffle();
       }
 
-      function captureFromCamera(targetCard = null, storePlayerPhoto = false) {
+      function restartExperience() {
+        clearResultResetTimer();
+        resetDeck();
+        storageRemove("nomuCurrentOrder");
+        orderInput.value = "";
+        orderBadge.textContent = "Order: -";
+        hideOverlay(photoPrompt);
+        hideOverlay(photoConfirm);
+        hideOverlay(choiceModal);
+        hideOverlay(adminLogin);
+        hideOverlay(adminPanel);
+        hideOverlay(downloadQrModal);
+        showOverlay(orderGate);
+        setTimeout(() => orderInput.focus(), 80);
+      }
+
+      function captureFromCamera(targetCard = null, storePlayerPhoto = false, options = {}) {
         if (!video.videoWidth) {
           showToast("เปิดกล้องก่อน แล้วค่อยถ่ายภาพสำหรับหน้าไพ่");
           return false;
@@ -1770,84 +2921,215 @@
         const src = canvas.toDataURL("image/jpeg", .92);
         if (storePlayerPhoto) {
           playerPhoto = src;
-          localStorage.setItem("nomuPlayerPhoto", src);
+          updatePhotoPreview();
         }
-        const target = targetCard || cards[imageQueueIndex % cards.length];
-        setCardImage(target, src);
-        if (!targetCard) imageQueueIndex++;
+        if (!options.previewOnly) {
+          const target = targetCard || cards[imageQueueIndex % cards.length];
+          setCardImage(target, src);
+          if (!targetCard) imageQueueIndex++;
+        }
         showToast(storePlayerPhoto ? "บันทึกรูปคู่แก้วสำหรับการ์ดแล้ว" : "ถ่ายภาพจากกล้องและใส่บนการ์ดแล้ว");
         return true;
       }
 
-      function wireEvents() {
-        async function enterExperience({ wantPhoto = false } = {}) {
-          hideOverlay(photoPrompt);
-          showToast(wantPhoto ? "กำลังเปิดกล้อง เตรียมถ่ายรูปคู่แก้วได้เลย" : "กำลังเปิดกล้องเพื่อเลือกการ์ด");
-          if (!camera) {
-            try {
-              await initHands();
-            } catch (error) {
-              console.error(error);
-              showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
-            }
-          }
+      function requestIntroPhoto() {
+        const src = grabCameraFrame();
+        if (!src) {
+          showToast("กล้องยังไม่พร้อม ลองถ่ายอีกครั้ง");
+          return false;
         }
+        showPhotoConfirmation(src);
+        return true;
+      }
 
-        enterOrder.addEventListener("click", () => {
+      function startPhotoCountdown() {
+        if (countdownTimer) clearInterval(countdownTimer);
+        if (!camera || !video.videoWidth) {
+          showToast("เปิดกล้องให้พร้อมก่อนถ่ายรูป");
+          showOverlay(photoPrompt);
+          return;
+        }
+        hideOverlay(photoConfirm);
+        showSelfieVideo();
+        showOverlay(photoPrompt);
+        startIntroPhoto.disabled = true;
+        photoCountdown.textContent = "5";
+        let count = 5;
+        countdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            photoCountdown.textContent = String(count);
+            return;
+          }
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          startIntroPhoto.disabled = false;
+          photoCountdown.textContent = "ถ่ายแล้ว";
+          hideOverlay(photoPrompt);
+          if (!requestIntroPhoto()) {
+            showSelfieVideo();
+            photoCountdown.textContent = "กดพร้อมถ่าย";
+            showOverlay(photoPrompt);
+          }
+        }, 1000);
+      }
+
+      function waitForCameraFrame(timeout = 4000) {
+        const started = performance.now();
+        return new Promise(resolve => {
+          const tick = () => {
+            if (video.videoWidth && video.videoHeight) {
+              resolve(true);
+              return;
+            }
+            if (performance.now() - started >= timeout) {
+              resolve(false);
+              return;
+            }
+            requestAnimationFrame(tick);
+          };
+          tick();
+        });
+      }
+
+      function wireEvents() {
+        function handleEnterOrder() {
           const order = orderInput.value.trim();
           if (!order) {
             showToast("กรอกเลขใบเสร็จหรือรหัส order ก่อนเริ่มเล่น");
             orderInput.focus();
             return;
           }
-          localStorage.setItem("nomuCurrentOrder", order);
+          storageSet("nomuCurrentOrder", order);
           orderBadge.textContent = `Order: ${order}`;
           hideOverlay(orderGate);
           showOverlay(photoPrompt);
-        });
+        }
+
+        async function enterExperience({ wantPhoto = false } = {}) {
+          hideOverlay(photoPrompt);
+          showToast(wantPhoto ? "กำลังเปิดกล้อง เตรียมถ่ายรูปคู่แก้วได้เลย" : "กำลังเปิดกล้องเพื่อเลือกการ์ด");
+          if (!camera) {
+            try {
+              const cameraReady = await initHands();
+              if (!cameraReady) {
+                showOverlay(photoPrompt);
+                return;
+              }
+            } catch (error) {
+              console.error(error);
+              showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
+              showOverlay(photoPrompt);
+              return;
+            }
+          }
+          const frameReady = await waitForCameraFrame();
+          if (!frameReady) {
+            showOverlay(photoPrompt);
+            return;
+          }
+          startPhotoCountdown();
+        }
+
+        enterOrder.addEventListener("click", handleEnterOrder);
         orderInput.addEventListener("keydown", event => {
-          if (event.key === "Enter") enterOrder.click();
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleEnterOrder();
+          }
         });
         howToPlayBtn.addEventListener("click", () => showOverlay(howToPlay));
         openHowFromGate.addEventListener("click", () => showOverlay(howToPlay));
         closeHowToPlay.addEventListener("click", () => hideOverlay(howToPlay));
         startIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: true }));
         skipIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: false }));
-        adminBtn.addEventListener("click", () => {
+        retakeIntroPhoto.addEventListener("click", () => startPhotoCountdown());
+        confirmIntroPhoto.addEventListener("click", confirmRoundPhoto);
+        addAdminMessage.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          addAdminListItem(adminMessageItems, "ข้อความบนการ์ด");
+        });
+        addAdminReward.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          addRewardRuleItem(adminRewardItems);
+        });
+        adminEntryBtn.addEventListener("click", () => {
+          adminUser.value = "";
+          adminPass.value = "";
+          hideOverlay(orderGate);
+          showOverlay(adminLogin);
+          adminUser.focus();
+        });
+        closeAdminLogin.addEventListener("click", () => {
+          hideOverlay(adminLogin);
+          showOverlay(orderGate);
+        });
+        enterAdmin.addEventListener("click", () => {
+          if (adminUser.value.trim() !== "admin" || adminPass.value !== "1234") {
+            showToast("User หรือรหัสผ่านไม่ถูกต้อง");
+            adminPass.focus();
+            return;
+          }
+          hideOverlay(adminLogin);
           syncAdminFields();
           showOverlay(adminPanel);
         });
-        closeAdmin.addEventListener("click", () => hideOverlay(adminPanel));
-        saveAdmin.addEventListener("click", async () => {
-          if (adminCode.value !== "nomu") {
-            showToast("รหัสแอดมินไม่ถูกต้อง");
-            return;
+        adminPass.addEventListener("keydown", event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            enterAdmin.click();
           }
-          const nextMessages = readLines(adminMessages.value);
-          const nextRewards = readLines(adminRewards.value);
+        });
+        closeAdmin.addEventListener("click", () => {
+          hideOverlay(adminPanel);
+          showOverlay(orderGate);
+        });
+        saveAdmin.addEventListener("click", async () => {
+          const nextMessages = getAdminList(adminMessageItems);
+          const nextRewardRules = getRewardRules(adminRewardItems);
           if (!nextMessages.length) {
             showToast("ต้องมีข้อความบนการ์ดอย่างน้อย 1 ข้อ");
             return;
           }
-          localStorage.setItem("nomuFortuneMessages", nextMessages.join("\n"));
-          localStorage.setItem("nomuFortuneRewards", nextRewards.join("\n"));
-          if (adminBackImage.files[0]) {
-            localStorage.setItem("nomuCardBackImage", await fileToDataUrl(adminBackImage.files[0]));
+          if (!nextRewardRules.length) {
+            showToast("ต้องมีโปรโมชั่นอย่างน้อย 1 รายการ หรือกดลบแล้วเพิ่มใหม่");
+            return;
           }
-          if (adminFrontImage.files[0]) {
-            localStorage.setItem("nomuCardFrontImage", await fileToDataUrl(adminFrontImage.files[0]));
+          const messageSaved = storageSet("nomuFortuneMessages", nextMessages.join("\n"));
+          rewardRules = nextRewardRules;
+          rewards = rewardRules.map(rule => rule.text);
+          const rewardSaved = saveRewardRules();
+          storageRemove("nomuRewardEnabled");
+          storageRemove("nomuRewardEvery");
+          storageRemove("nomuRewardCounter");
+          let savedRewardRules = [];
+          try {
+            savedRewardRules = JSON.parse(storageGet("nomuRewardRules") || "[]");
+          } catch (error) {
+            savedRewardRules = [];
           }
+          const verified = savedRewardRules.length === nextRewardRules.length
+            && savedRewardRules.every((rule, index) => rule.text === nextRewardRules[index].text && rule.enabled === nextRewardRules[index].enabled && Number(rule.every) === Number(nextRewardRules[index].every));
           loadSettings();
           hideOverlay(adminPanel);
+          showOverlay(orderGate);
           resetDeck();
           createDeck();
-          showToast("บันทึกข้อความและรางวัลแล้ว");
+          showToast(messageSaved && rewardSaved && verified
+            ? "บันทึกข้อความและโปรโมชั่นแล้ว"
+            : "บันทึกชั่วคราวแล้ว แต่ browser อาจบล็อก localStorage");
         });
         resetAdmin.addEventListener("click", () => {
-          localStorage.removeItem("nomuFortuneMessages");
-          localStorage.removeItem("nomuFortuneRewards");
-          localStorage.removeItem("nomuCardBackImage");
-          localStorage.removeItem("nomuCardFrontImage");
+          storageRemove("nomuFortuneMessages");
+          storageRemove("nomuFortuneRewards");
+          storageRemove("nomuRewardEnabled");
+          storageRemove("nomuRewardEvery");
+          storageRemove("nomuRewardCounter");
+          storageRemove("nomuRewardRules");
+          storageRemove("nomuCardBackImage");
+          storageRemove("nomuCardFrontImage");
           loadSettings();
           syncAdminFields();
           resetDeck();
@@ -1857,12 +3139,15 @@
         downloadCard.addEventListener("click", downloadSelectedCard);
         shareCard.addEventListener("click", shareSelectedCard);
         printCard.addEventListener("click", printSelectedCard);
+        homeCard.addEventListener("click", restartExperience);
+        qrShareCard.addEventListener("click", shareSelectedCard);
+        qrCloseHome.addEventListener("click", restartExperience);
         startCamera.addEventListener("click", () => initHands().catch(error => {
           console.error(error);
           showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
           status.textContent = "กล้องยังไม่พร้อม";
         }));
-        captureCard.addEventListener("click", () => captureFromCamera(null, true));
+        captureCard.addEventListener("click", () => startPhotoCountdown());
         attachPhoto.addEventListener("click", async () => {
           if (!pendingReveal) return;
           if (!video.videoWidth && !camera) {
@@ -1882,7 +3167,7 @@
         singleUpload.addEventListener("change", event => assignImages(event.target.files, true));
         window.addEventListener("resize", () => {
           seedAtmosphere();
-          resetDeck();
+          if (!selected) layoutCards(true);
           resizeCanvas();
         });
         stage.addEventListener("pointermove", event => {
@@ -1896,12 +3181,13 @@
           if (hovered) hovered.el.classList.remove("hovered");
           hovered = null;
         });
+        window.addEventListener("afterprint", restartExperience);
       }
 
       function boot() {
         loadSettings();
         syncAdminFields();
-        const savedOrder = localStorage.getItem("nomuCurrentOrder") || "";
+        const savedOrder = storageGet("nomuCurrentOrder") || "";
         if (savedOrder) {
           orderInput.value = savedOrder;
           orderBadge.textContent = `Order: ${savedOrder}`;
