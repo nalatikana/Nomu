@@ -497,7 +497,7 @@
       width: 87.2%;
       height: 45.2%;
       object-fit: cover;
-      object-position: center center;
+      object-position: center 42%;
       display: none;
       border-radius: 4.6%;
       z-index: 1;
@@ -1371,6 +1371,12 @@
       }
     }
 
+    @media (min-width: 821px) and (max-width: 1366px) and (orientation: portrait) {
+      .card-front img {
+        object-position: center 38%;
+      }
+    }
+
     @media print {
       body {
         background: #fff !important;
@@ -1853,16 +1859,41 @@
         updatePhotoPreview();
       }
 
-      function grabCameraFrame() {
+      function captureCardPhotoDataUrl(quality = .94) {
         if (!video.videoWidth) return "";
+        const targetAspect = 87.2 / 45.2;
+        const outputWidth = 1400;
+        const outputHeight = Math.round(outputWidth / targetAspect);
+        const sourceWidth = video.videoWidth;
+        const sourceHeight = video.videoHeight;
+        const sourceAspect = sourceWidth / sourceHeight;
+        let sx = 0;
+        let sy = 0;
+        let sw = sourceWidth;
+        let sh = sourceHeight;
+
+        if (sourceAspect > targetAspect) {
+          sw = sourceHeight * targetAspect;
+          sx = (sourceWidth - sw) / 2;
+        } else {
+          sh = sourceWidth / targetAspect;
+          sy = Math.max(0, (sourceHeight - sh) * .42);
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
         const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL("image/jpeg", .94);
+        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
+        return canvas.toDataURL("image/jpeg", quality);
+      }
+
+      function grabCameraFrame() {
+        return captureCardPhotoDataUrl(.94);
       }
 
       function showSelfieVideo() {
@@ -2911,14 +2942,7 @@
           showToast("เปิดกล้องก่อน แล้วค่อยถ่ายภาพสำหรับหน้าไพ่");
           return false;
         }
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const src = canvas.toDataURL("image/jpeg", .92);
+        const src = captureCardPhotoDataUrl(.92);
         if (storePlayerPhoto) {
           playerPhoto = src;
           updatePhotoPreview();
