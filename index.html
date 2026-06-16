@@ -1132,9 +1132,9 @@
       width: 100%;
       aspect-ratio: 4 / 3;
       display: block;
-      object-fit: cover;
+      object-fit: contain;
       border-top: 1px solid rgba(103, 232, 249, .24);
-      background: rgba(255, 255, 255, .08);
+      background: rgba(0, 0, 0, .48);
     }
 
     .photo-preview[hidden] {
@@ -1867,18 +1867,6 @@
         const sourceWidth = video.videoWidth;
         const sourceHeight = video.videoHeight;
         const sourceAspect = sourceWidth / sourceHeight;
-        let sx = 0;
-        let sy = 0;
-        let sw = sourceWidth;
-        let sh = sourceHeight;
-
-        if (sourceAspect > targetAspect) {
-          sw = sourceHeight * targetAspect;
-          sx = (sourceWidth - sw) / 2;
-        } else {
-          sh = sourceWidth / targetAspect;
-          sy = Math.max(0, (sourceHeight - sh) * .42);
-        }
 
         const canvas = document.createElement("canvas");
         canvas.width = outputWidth;
@@ -1886,9 +1874,28 @@
         const ctx = canvas.getContext("2d");
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
+
+        const bg = sourceAspect > targetAspect
+          ? { w: outputHeight * sourceAspect, h: outputHeight }
+          : { w: outputWidth, h: outputWidth / sourceAspect };
+        const bgX = (outputWidth - bg.w) / 2;
+        const bgY = (outputHeight - bg.h) / 2;
+
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
-        ctx.drawImage(video, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
+        ctx.filter = "blur(22px) brightness(.78) saturate(1.08)";
+        ctx.drawImage(video, bgX, bgY, bg.w, bg.h);
+        ctx.filter = "none";
+
+        const fit = sourceAspect > targetAspect
+          ? { w: outputWidth, h: outputWidth / sourceAspect }
+          : { w: outputHeight * sourceAspect, h: outputHeight };
+        const fitX = (outputWidth - fit.w) / 2;
+        const fitY = sourceAspect > targetAspect ? (outputHeight - fit.h) * .38 : 0;
+
+        ctx.fillStyle = "rgba(0, 0, 0, .1)";
+        ctx.fillRect(0, 0, outputWidth, outputHeight);
+        ctx.drawImage(video, fitX, fitY, fit.w, fit.h);
         return canvas.toDataURL("image/jpeg", quality);
       }
 
