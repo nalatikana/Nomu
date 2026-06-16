@@ -294,6 +294,12 @@
       box-shadow: 0 12px 44px rgba(0, 0, 0, .36), inset 0 0 28px rgba(158, 214, 111, .035);
     }
 
+    body.photo-confirming .topbar {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
     .brand {
       display: flex;
       align-items: center;
@@ -650,6 +656,14 @@
       z-index: 24;
     }
 
+    #photoConfirm {
+      position: fixed;
+      z-index: 22;
+      place-items: start center;
+      padding-top: max(18px, env(safe-area-inset-top));
+      padding-bottom: max(18px, env(safe-area-inset-bottom));
+    }
+
     .panel {
       width: min(760px, calc(100vw - 28px));
       max-height: calc(100svh - 34px);
@@ -958,15 +972,20 @@
     .confirm-photo {
       display: grid;
       gap: 14px;
+      max-height: calc(100dvh - var(--topbar-offset, 158px) - env(safe-area-inset-bottom, 0px) - 28px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .confirm-photo canvas {
       width: 100%;
-      aspect-ratio: 4 / 3;
+      aspect-ratio: 87.2 / 45.2;
+      max-height: min(44dvh, 470px);
       border-radius: 8px;
       border: 1px solid rgba(235, 238, 244, .28);
       background: rgba(0, 0, 0, .48);
       touch-action: none;
+      object-fit: contain;
     }
 
     .crop-note {
@@ -2011,9 +2030,6 @@
         const outputWidth = 1400;
         const outputHeight = Math.round(outputWidth / targetAspect);
         const source = pendingSourceCanvas;
-        const sourceWidth = source.width;
-        const sourceHeight = source.height;
-        const sourceAspect = sourceWidth / sourceHeight;
 
         const canvas = document.createElement("canvas");
         canvas.width = outputWidth;
@@ -2022,28 +2038,29 @@
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, outputWidth, outputHeight);
-
-        const base = sourceAspect > targetAspect
-          ? { w: outputWidth, h: outputWidth / sourceAspect }
-          : { w: outputHeight * sourceAspect, h: outputHeight };
-        const fit = {
-          w: base.w * photoEdit.zoom,
-          h: base.h * photoEdit.zoom
-        };
-        const fitX = (outputWidth - fit.w) / 2 + photoEdit.x * outputWidth;
-        const fitY = (outputHeight - fit.h) / 2 + photoEdit.y * outputHeight;
-
-        ctx.drawImage(source, fitX, fitY, fit.w, fit.h);
-
-        if (photoEdit.sticker) {
-          ctx.font = `900 ${Math.round(outputWidth * .13)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-          ctx.textAlign = "right";
-          ctx.textBaseline = "top";
-          ctx.fillText(photoEdit.sticker, outputWidth - 34, 30);
-        }
+        const crop = getCoverCrop(source, targetAspect);
+        ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, outputWidth, outputHeight);
         return canvas.toDataURL("image/jpeg", quality);
+      }
+
+      function getCoverCrop(source, targetAspect) {
+        let sx = 0;
+        let sy = 0;
+        let sw = source.width;
+        let sh = source.height;
+        const sourceAspect = sw / sh;
+
+        if (sourceAspect > targetAspect) {
+          sw = sh * targetAspect;
+          sx = (source.width - sw) / 2;
+        } else {
+          sh = sw / targetAspect;
+          const maxSy = Math.max(0, source.height - sh);
+          const verticalPosition = Math.min(.95, Math.max(.05, .5 + photoEdit.y));
+          sy = maxSy * verticalPosition;
+        }
+
+        return { sx, sy, sw, sh };
       }
 
       function grabCameraFrame() {
@@ -2073,24 +2090,10 @@
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#111";
-        ctx.fillRect(0, 0, width, height);
         const source = pendingSourceCanvas;
-        const sourceAspect = source.width / source.height;
         const targetAspect = width / height;
-        const base = sourceAspect > targetAspect
-          ? { w: width, h: width / sourceAspect }
-          : { w: height * sourceAspect, h: height };
-        const fit = { w: base.w * photoEdit.zoom, h: base.h * photoEdit.zoom };
-        const fitX = (width - fit.w) / 2 + photoEdit.x * width;
-        const fitY = (height - fit.h) / 2 + photoEdit.y * height;
-        ctx.drawImage(source, fitX, fitY, fit.w, fit.h);
-        if (photoEdit.sticker) {
-          ctx.font = `900 ${Math.round(width * .13)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-          ctx.textAlign = "right";
-          ctx.textBaseline = "top";
-          ctx.fillText(photoEdit.sticker, width - 24, 22);
-        }
+        const crop = getCoverCrop(source, targetAspect);
+        ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
       }
 
       function showPhotoConfirmation(src) {
@@ -2102,7 +2105,7 @@
       }
 
       function confirmRoundPhoto() {
-        pendingPhoto = renderEditedPhotoDataUrl(.94);
+        pendingPhoto = renderEditedPhotoDataUrl(.94) || pendingPhoto;
         if (!pendingPhoto) return;
         playerPhoto = pendingPhoto;
         pendingPhoto = "";
@@ -2378,10 +2381,12 @@
 
       function showOverlay(el) {
         el.classList.add("visible");
+        if (el === photoConfirm) document.body.classList.add("photo-confirming");
       }
 
       function hideOverlay(el) {
         el.classList.remove("visible");
+        if (el === photoConfirm) document.body.classList.remove("photo-confirming");
       }
 
       function rand(min, max) {
@@ -3100,6 +3105,7 @@
         reading.classList.remove("visible", "card-only");
         choiceModal.classList.remove("visible");
         photoConfirm.classList.remove("visible");
+        document.body.classList.remove("photo-confirming");
         gsap.set(choiceModal, { opacity: 0, visibility: "hidden" });
         cards.forEach(card => {
           card.revealed = false;
@@ -3267,19 +3273,9 @@
         photoEditButtons.forEach(button => {
           button.addEventListener("click", () => {
             const action = button.dataset.photoEdit;
-            if (action === "zoomIn") photoEdit.zoom = Math.min(2.4, photoEdit.zoom + .08);
-            if (action === "zoomOut") photoEdit.zoom = Math.max(.72, photoEdit.zoom - .08);
-            if (action === "left") photoEdit.x -= .035;
-            if (action === "right") photoEdit.x += .035;
-            if (action === "up") photoEdit.y -= .035;
-            if (action === "down") photoEdit.y += .035;
-            drawPhotoEditorPreview();
-          });
-        });
-        stickerButtons.forEach(button => {
-          button.addEventListener("click", () => {
-            photoEdit.sticker = button.dataset.sticker || "";
-            stickerButtons.forEach(item => item.classList.toggle("active", item === button));
+            if (action === "up") photoEdit.y = Math.max(-.45, photoEdit.y - .08);
+            if (action === "down") photoEdit.y = Math.min(.45, photoEdit.y + .08);
+            if (action === "reset") photoEdit.y = 0;
             drawPhotoEditorPreview();
           });
         });
