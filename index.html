@@ -960,13 +960,35 @@
       gap: 14px;
     }
 
-    .confirm-photo img {
+    .confirm-photo canvas {
       width: 100%;
       aspect-ratio: 4 / 3;
-      object-fit: cover;
       border-radius: 8px;
       border: 1px solid rgba(235, 238, 244, .28);
-      background: rgba(255, 255, 255, .08);
+      background: rgba(0, 0, 0, .48);
+      touch-action: none;
+    }
+
+    .photo-editor-controls,
+    .photo-stickers {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .photo-stickers {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .photo-editor-controls button,
+    .photo-stickers button {
+      min-height: 38px;
+      padding: 0 8px;
+    }
+
+    .photo-stickers button.active {
+      border-color: rgba(215, 247, 170, .82);
+      box-shadow: 0 0 22px rgba(158, 214, 111, .25), inset 0 0 18px rgba(215, 247, 170, .12);
     }
 
     #skipIntroPhoto {
@@ -1029,6 +1051,42 @@
       backdrop-filter: blur(18px);
       box-shadow: 0 0 44px rgba(158, 214, 111, .24), inset 0 0 30px rgba(234, 209, 138, .06);
       padding: 14px 16px 16px;
+    }
+
+    .ready-guide {
+      position: absolute;
+      z-index: 9;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: min(520px, calc(100vw - 44px));
+      padding: 18px;
+      border: 1px solid rgba(215, 247, 170, .34);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(2, 10, 7, .9), rgba(18, 42, 24, .82));
+      box-shadow: 0 0 38px rgba(158, 214, 111, .22);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .ready-guide[hidden] {
+      display: none;
+    }
+
+    .ready-guide strong {
+      display: block;
+      color: #fffdf4;
+      font-size: clamp(28px, 6vw, 56px);
+      line-height: 1.05;
+      text-shadow: 0 0 22px rgba(215, 247, 170, .24);
+    }
+
+    .ready-guide span {
+      display: block;
+      margin-top: 8px;
+      color: var(--matcha-soft);
+      font-size: clamp(14px, 2.6vw, 20px);
+      line-height: 1.35;
     }
 
     .reading.visible {
@@ -1136,7 +1194,7 @@
 
     .photo-preview {
       width: 100%;
-      aspect-ratio: 4 / 3;
+      aspect-ratio: 87.2 / 45.2;
       display: block;
       object-fit: contain;
       border-top: 1px solid rgba(103, 232, 249, .24);
@@ -1472,6 +1530,10 @@
     </aside>
 
     <div class="orb-cursor" id="orbCursor" aria-hidden="true"></div>
+    <div class="ready-guide" id="readyGuide" hidden>
+      <strong id="readyGuideTitle">แบมือ 5 นิ้ว</strong>
+      <span id="readyGuideText">ให้เห็นมือครบในกล้อง เพื่อเริ่มเลือกการ์ด</span>
+    </div>
 
     <section class="reading" id="reading" aria-live="polite">
       <p class="reading-title">NOMU Daily Fortune</p>
@@ -1563,7 +1625,22 @@
       <div class="panel confirm-photo">
         <h2>ยืนยันรูปสำหรับการ์ด</h2>
         <p>รูปนี้จะใช้เฉพาะรอบนี้ และจะถูกล้างเมื่อจบรอบ</p>
-        <img id="confirmPhotoPreview" alt="photo to use on card">
+        <canvas id="confirmPhotoPreview" aria-label="photo crop preview"></canvas>
+        <div class="photo-editor-controls" aria-label="photo crop controls">
+          <button type="button" data-photo-edit="zoomOut">ซูม -</button>
+          <button type="button" data-photo-edit="zoomIn">ซูม +</button>
+          <button type="button" data-photo-edit="up">ขึ้น</button>
+          <button type="button" data-photo-edit="down">ลง</button>
+          <button type="button" data-photo-edit="left">ซ้าย</button>
+          <button type="button" data-photo-edit="right">ขวา</button>
+        </div>
+        <div class="photo-stickers" aria-label="photo stickers">
+          <button type="button" data-sticker="">ไม่ใส่</button>
+          <button type="button" data-sticker="🍵">🍵</button>
+          <button type="button" data-sticker="🌿">🌿</button>
+          <button type="button" data-sticker="🧋">🧋</button>
+          <button type="button" data-sticker="✨">✨</button>
+        </div>
         <div class="panel-actions">
           <button id="retakeIntroPhoto" type="button">ถ่ายใหม่</button>
           <button id="confirmIntroPhoto" type="button">ใช้รูปนี้</button>
@@ -1793,12 +1870,17 @@
       const shareCard = document.getElementById("shareCard");
       const printCard = document.getElementById("printCard");
       const homeCard = document.getElementById("homeCard");
+      const readyGuide = document.getElementById("readyGuide");
+      const readyGuideTitle = document.getElementById("readyGuideTitle");
+      const readyGuideText = document.getElementById("readyGuideText");
       const downloadQrModal = document.getElementById("downloadQrModal");
       const qrPreview = document.getElementById("qrPreview");
       const downloadQrCanvas = document.getElementById("downloadQrCanvas");
       const qrStatus = document.getElementById("qrStatus");
       const qrShareCard = document.getElementById("qrShareCard");
       const qrCloseHome = document.getElementById("qrCloseHome");
+      const photoEditButtons = Array.from(document.querySelectorAll("[data-photo-edit]"));
+      const stickerButtons = Array.from(document.querySelectorAll("[data-sticker]"));
 
       let cards = [];
       let camera = null;
@@ -1810,6 +1892,8 @@
       let pendingReveal = null;
       let playerPhoto = "";
       let pendingPhoto = "";
+      let pendingSourceCanvas = null;
+      let photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
       let currentReward = "";
       let lastDownloadCanvas = null;
       let resultResetTimer = null;
@@ -1817,6 +1901,7 @@
       let handGateReady = false;
       let openHandFrames = 0;
       let countdownTimer = null;
+      let readyCountdownTimer = null;
       let imageQueueIndex = 0;
       let customImages = [];
       let lastTrail = 0;
@@ -1834,6 +1919,40 @@
           clearTimeout(resultResetTimer);
           resultResetTimer = null;
         }
+      }
+
+      function clearReadyCountdown() {
+        if (readyCountdownTimer) {
+          clearInterval(readyCountdownTimer);
+          readyCountdownTimer = null;
+        }
+      }
+
+      function showReadyGuide(title, text) {
+        readyGuideTitle.textContent = title;
+        readyGuideText.textContent = text;
+        readyGuide.hidden = false;
+      }
+
+      function hideReadyGuide() {
+        readyGuide.hidden = true;
+      }
+
+      function startReadyCountdown() {
+        if (readyCountdownTimer || handGateReady) return;
+        let count = 3;
+        showReadyGuide(String(count), "เห็นมือครบ 5 นิ้วแล้ว เตรียมเริ่มเลือกการ์ด");
+        readyCountdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            showReadyGuide(String(count), "ค้างมือไว้ในกล้องอีกนิด");
+            return;
+          }
+          clearReadyCountdown();
+          handGateReady = true;
+          hideReadyGuide();
+          updateCameraStatus("พร้อมเล่น: บีบนิ้วเพื่อหยิบไพ่");
+        }, 1000);
       }
 
       function scheduleResultReset() {
@@ -1859,9 +1978,13 @@
       function clearRoundPhoto() {
         playerPhoto = "";
         pendingPhoto = "";
+        pendingSourceCanvas = null;
+        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
         photoReady = false;
         handGateReady = false;
         openHandFrames = 0;
+        clearReadyCountdown();
+        hideReadyGuide();
         updatePhotoPreview();
       }
 
@@ -1897,12 +2020,12 @@
         return frame;
       }
 
-      function captureCardPhotoDataUrl(quality = .94) {
-        if (!video.videoWidth) return "";
+      function renderEditedPhotoDataUrl(quality = .94) {
+        if (!pendingSourceCanvas) return "";
         const targetAspect = 87.2 / 45.2;
         const outputWidth = 1400;
         const outputHeight = Math.round(outputWidth / targetAspect);
-        const source = makeNormalizedVideoFrame();
+        const source = pendingSourceCanvas;
         const sourceWidth = source.width;
         const sourceHeight = source.height;
         const sourceAspect = sourceWidth / sourceHeight;
@@ -1914,32 +2037,33 @@
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        const bg = sourceAspect > targetAspect
-          ? { w: outputHeight * sourceAspect, h: outputHeight }
-          : { w: outputWidth, h: outputWidth / sourceAspect };
-        const bgX = (outputWidth - bg.w) / 2;
-        const bgY = (outputHeight - bg.h) / 2;
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, outputWidth, outputHeight);
 
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.filter = "blur(22px) brightness(.78) saturate(1.08)";
-        ctx.drawImage(source, bgX, bgY, bg.w, bg.h);
-        ctx.filter = "none";
-
-        const fit = sourceAspect > targetAspect
+        const base = sourceAspect > targetAspect
           ? { w: outputWidth, h: outputWidth / sourceAspect }
           : { w: outputHeight * sourceAspect, h: outputHeight };
-        const fitX = (outputWidth - fit.w) / 2;
-        const fitY = sourceAspect > targetAspect ? (outputHeight - fit.h) * .38 : 0;
+        const fit = {
+          w: base.w * photoEdit.zoom,
+          h: base.h * photoEdit.zoom
+        };
+        const fitX = (outputWidth - fit.w) / 2 + photoEdit.x * outputWidth;
+        const fitY = (outputHeight - fit.h) / 2 + photoEdit.y * outputHeight;
 
-        ctx.fillStyle = "rgba(0, 0, 0, .1)";
-        ctx.fillRect(0, 0, outputWidth, outputHeight);
         ctx.drawImage(source, fitX, fitY, fit.w, fit.h);
+
+        if (photoEdit.sticker) {
+          ctx.font = `900 ${Math.round(outputWidth * .13)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+          ctx.textAlign = "right";
+          ctx.textBaseline = "top";
+          ctx.fillText(photoEdit.sticker, outputWidth - 34, 30);
+        }
         return canvas.toDataURL("image/jpeg", quality);
       }
 
       function grabCameraFrame() {
-        return captureCardPhotoDataUrl(.94);
+        pendingSourceCanvas = makeNormalizedVideoFrame();
+        return renderEditedPhotoDataUrl(.94);
       }
 
       function showSelfieVideo() {
@@ -1956,15 +2080,44 @@
         }
       }
 
+      function drawPhotoEditorPreview() {
+        if (!pendingSourceCanvas) return;
+        const canvas = confirmPhotoPreview;
+        const width = 900;
+        const height = Math.round(width / (87.2 / 45.2));
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#111";
+        ctx.fillRect(0, 0, width, height);
+        const source = pendingSourceCanvas;
+        const sourceAspect = source.width / source.height;
+        const targetAspect = width / height;
+        const base = sourceAspect > targetAspect
+          ? { w: width, h: width / sourceAspect }
+          : { w: height * sourceAspect, h: height };
+        const fit = { w: base.w * photoEdit.zoom, h: base.h * photoEdit.zoom };
+        const fitX = (width - fit.w) / 2 + photoEdit.x * width;
+        const fitY = (height - fit.h) / 2 + photoEdit.y * height;
+        ctx.drawImage(source, fitX, fitY, fit.w, fit.h);
+        if (photoEdit.sticker) {
+          ctx.font = `900 ${Math.round(width * .13)}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+          ctx.textAlign = "right";
+          ctx.textBaseline = "top";
+          ctx.fillText(photoEdit.sticker, width - 24, 22);
+        }
+      }
+
       function showPhotoConfirmation(src) {
         pendingPhoto = src;
-        confirmPhotoPreview.src = src;
+        drawPhotoEditorPreview();
         restoreVideoPanel();
         hideOverlay(photoPrompt);
         showOverlay(photoConfirm);
       }
 
       function confirmRoundPhoto() {
+        pendingPhoto = renderEditedPhotoDataUrl(.94);
         if (!pendingPhoto) return;
         playerPhoto = pendingPhoto;
         pendingPhoto = "";
@@ -1974,6 +2127,7 @@
         handGateReady = false;
         openHandFrames = 0;
         updateCameraStatus("แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่");
+        showReadyGuide("แบมือ 5 นิ้ว", "ถ้าพร้อมแล้ว ระบบจะนับถอยหลัง 3 วิ");
       }
 
       function canPlayCards() {
@@ -2905,9 +3059,10 @@
           const landmarks = results.multiHandLandmarks[0];
           const openFingerCount = countOpenFingers(landmarks);
           openHandFrames = openFingerCount >= 5 ? openHandFrames + 1 : 0;
-          if (!handGateReady && openHandFrames >= 8) {
-            handGateReady = true;
-            updateCameraStatus("พร้อมเล่น: เห็นมือครบ 5 นิ้วแล้ว");
+          if (photoReady && !handGateReady && openHandFrames >= 8) {
+            startReadyCountdown();
+          } else if (photoReady && !handGateReady && !readyCountdownTimer) {
+            showReadyGuide("แบมือ 5 นิ้ว", "ให้เห็นมือครบในกล้อง เพื่อเริ่มนับถอยหลัง");
           }
           if (window.drawConnectors && window.HAND_CONNECTIONS) {
             drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, { color: "rgba(248, 212, 119, .8)", lineWidth: 2 });
@@ -2932,6 +3087,10 @@
           status.textContent = pointer.pinching ? "กำลังถือไพ่ ปล่อยนิ้วเพื่อเปิดคำทำนาย" : "เลื่อนนิ้วชี้เหนือไพ่ แล้วบีบเพื่อหยิบ";
         } else {
           openHandFrames = 0;
+          if (photoReady && !handGateReady) {
+            clearReadyCountdown();
+            showReadyGuide("แบมือ 5 นิ้ว", "ให้เห็นมือครบในกล้อง เพื่อเริ่มนับถอยหลัง");
+          }
           setPointer(pointer.x, pointer.y, false);
           setPinch(false);
           if (hovered) hovered.el.classList.remove("hovered");
@@ -2991,7 +3150,9 @@
           showToast("เปิดกล้องก่อน แล้วค่อยถ่ายภาพสำหรับหน้าไพ่");
           return false;
         }
-        const src = captureCardPhotoDataUrl(.92);
+        pendingSourceCanvas = makeNormalizedVideoFrame();
+        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
+        const src = renderEditedPhotoDataUrl(.92);
         if (storePlayerPhoto) {
           playerPhoto = src;
           updatePhotoPreview();
@@ -3006,6 +3167,7 @@
       }
 
       function requestIntroPhoto() {
+        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
         const src = grabCameraFrame();
         if (!src) {
           showToast("กล้องยังไม่พร้อม ลองถ่ายอีกครั้ง");
@@ -3117,6 +3279,25 @@
         startIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: true }));
         skipIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: false }));
         retakeIntroPhoto.addEventListener("click", () => startPhotoCountdown());
+        photoEditButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            const action = button.dataset.photoEdit;
+            if (action === "zoomIn") photoEdit.zoom = Math.min(2.4, photoEdit.zoom + .08);
+            if (action === "zoomOut") photoEdit.zoom = Math.max(.72, photoEdit.zoom - .08);
+            if (action === "left") photoEdit.x -= .035;
+            if (action === "right") photoEdit.x += .035;
+            if (action === "up") photoEdit.y -= .035;
+            if (action === "down") photoEdit.y += .035;
+            drawPhotoEditorPreview();
+          });
+        });
+        stickerButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            photoEdit.sticker = button.dataset.sticker || "";
+            stickerButtons.forEach(item => item.classList.toggle("active", item === button));
+            drawPhotoEditorPreview();
+          });
+        });
         confirmIntroPhoto.addEventListener("click", confirmRoundPhoto);
         addAdminMessage.addEventListener("click", event => {
           event.preventDefault();
