@@ -969,26 +969,21 @@
       touch-action: none;
     }
 
-    .photo-editor-controls,
-    .photo-stickers {
+    .crop-note {
+      margin: -2px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .photo-editor-controls {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
     }
 
-    .photo-stickers {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-
-    .photo-editor-controls button,
-    .photo-stickers button {
+    .photo-editor-controls button {
       min-height: 38px;
       padding: 0 8px;
-    }
-
-    .photo-stickers button.active {
-      border-color: rgba(215, 247, 170, .82);
-      box-shadow: 0 0 22px rgba(158, 214, 111, .25), inset 0 0 18px rgba(215, 247, 170, .12);
     }
 
     #skipIntroPhoto {
@@ -1626,20 +1621,11 @@
         <h2>ยืนยันรูปสำหรับการ์ด</h2>
         <p>รูปนี้จะใช้เฉพาะรอบนี้ และจะถูกล้างเมื่อจบรอบ</p>
         <canvas id="confirmPhotoPreview" aria-label="photo crop preview"></canvas>
+        <p class="crop-note">ภาพจะเต็มกรอบแนวนอนโดยไม่บีบสัดส่วน กรอบนี้คือพื้นที่ที่จะถูกใช้จริงบนการ์ด</p>
         <div class="photo-editor-controls" aria-label="photo crop controls">
-          <button type="button" data-photo-edit="zoomOut">ซูม -</button>
-          <button type="button" data-photo-edit="zoomIn">ซูม +</button>
-          <button type="button" data-photo-edit="up">ขึ้น</button>
-          <button type="button" data-photo-edit="down">ลง</button>
-          <button type="button" data-photo-edit="left">ซ้าย</button>
-          <button type="button" data-photo-edit="right">ขวา</button>
-        </div>
-        <div class="photo-stickers" aria-label="photo stickers">
-          <button type="button" data-sticker="">ไม่ใส่</button>
-          <button type="button" data-sticker="🍵">🍵</button>
-          <button type="button" data-sticker="🌿">🌿</button>
-          <button type="button" data-sticker="🧋">🧋</button>
-          <button type="button" data-sticker="✨">✨</button>
+          <button type="button" data-photo-edit="up">เลื่อนขึ้น</button>
+          <button type="button" data-photo-edit="reset">ตรงกลาง</button>
+          <button type="button" data-photo-edit="down">เลื่อนลง</button>
         </div>
         <div class="panel-actions">
           <button id="retakeIntroPhoto" type="button">ถ่ายใหม่</button>
@@ -1880,7 +1866,6 @@
       const qrShareCard = document.getElementById("qrShareCard");
       const qrCloseHome = document.getElementById("qrCloseHome");
       const photoEditButtons = Array.from(document.querySelectorAll("[data-photo-edit]"));
-      const stickerButtons = Array.from(document.querySelectorAll("[data-sticker]"));
 
       let cards = [];
       let camera = null;
@@ -1893,7 +1878,7 @@
       let playerPhoto = "";
       let pendingPhoto = "";
       let pendingSourceCanvas = null;
-      let photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
+      let photoEdit = { y: 0 };
       let currentReward = "";
       let lastDownloadCanvas = null;
       let resultResetTimer = null;
@@ -1979,7 +1964,7 @@
         playerPhoto = "";
         pendingPhoto = "";
         pendingSourceCanvas = null;
-        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
+        photoEdit = { y: 0 };
         photoReady = false;
         handGateReady = false;
         openHandFrames = 0;
@@ -3151,7 +3136,7 @@
           return false;
         }
         pendingSourceCanvas = makeNormalizedVideoFrame();
-        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
+        photoEdit = { y: 0 };
         const src = renderEditedPhotoDataUrl(.92);
         if (storePlayerPhoto) {
           playerPhoto = src;
@@ -3167,7 +3152,7 @@
       }
 
       function requestIntroPhoto() {
-        photoEdit = { zoom: 1, x: 0, y: 0, sticker: "" };
+        photoEdit = { y: 0 };
         const src = grabCameraFrame();
         if (!src) {
           showToast("กล้องยังไม่พร้อม ลองถ่ายอีกครั้ง");
