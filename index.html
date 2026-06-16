@@ -1002,6 +1002,12 @@
       transform: scaleX(-1);
     }
 
+    .selfie-preview video.camera-rotated {
+      object-fit: contain;
+      transform: rotate(90deg) scaleY(-1);
+      background: #000;
+    }
+
     .selfie-preview .photo-countdown {
       position: absolute;
       inset: 0;
@@ -1859,13 +1865,46 @@
         updatePhotoPreview();
       }
 
+      function shouldRotateCameraFrame() {
+        const agent = navigator.userAgent || "";
+        const isAppleTablet = /iPad/i.test(agent) || (/Macintosh/i.test(agent) && navigator.maxTouchPoints > 1);
+        const isLine = /Line/i.test(agent);
+        return (isAppleTablet || isLine) && innerHeight > innerWidth && video.videoWidth > video.videoHeight;
+      }
+
+      function updateCameraOrientationClass() {
+        video.classList.toggle("camera-rotated", shouldRotateCameraFrame());
+      }
+
+      function makeNormalizedVideoFrame() {
+        const rotate = shouldRotateCameraFrame();
+        const sourceWidth = video.videoWidth;
+        const sourceHeight = video.videoHeight;
+        const frame = document.createElement("canvas");
+        frame.width = rotate ? sourceHeight : sourceWidth;
+        frame.height = rotate ? sourceWidth : sourceHeight;
+        const frameCtx = frame.getContext("2d");
+        frameCtx.imageSmoothingEnabled = true;
+        frameCtx.imageSmoothingQuality = "high";
+
+        if (rotate) {
+          frameCtx.translate(frame.width, 0);
+          frameCtx.rotate(Math.PI / 2);
+          frameCtx.drawImage(video, 0, 0, sourceWidth, sourceHeight);
+        } else {
+          frameCtx.drawImage(video, 0, 0, sourceWidth, sourceHeight);
+        }
+        return frame;
+      }
+
       function captureCardPhotoDataUrl(quality = .94) {
         if (!video.videoWidth) return "";
         const targetAspect = 87.2 / 45.2;
         const outputWidth = 1400;
         const outputHeight = Math.round(outputWidth / targetAspect);
-        const sourceWidth = video.videoWidth;
-        const sourceHeight = video.videoHeight;
+        const source = makeNormalizedVideoFrame();
+        const sourceWidth = source.width;
+        const sourceHeight = source.height;
         const sourceAspect = sourceWidth / sourceHeight;
 
         const canvas = document.createElement("canvas");
@@ -1884,7 +1923,7 @@
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.filter = "blur(22px) brightness(.78) saturate(1.08)";
-        ctx.drawImage(video, bgX, bgY, bg.w, bg.h);
+        ctx.drawImage(source, bgX, bgY, bg.w, bg.h);
         ctx.filter = "none";
 
         const fit = sourceAspect > targetAspect
@@ -1895,7 +1934,7 @@
 
         ctx.fillStyle = "rgba(0, 0, 0, .1)";
         ctx.fillRect(0, 0, outputWidth, outputHeight);
-        ctx.drawImage(video, fitX, fitY, fit.w, fit.h);
+        ctx.drawImage(source, fitX, fitY, fit.w, fit.h);
         return canvas.toDataURL("image/jpeg", quality);
       }
 
@@ -1904,12 +1943,14 @@
       }
 
       function showSelfieVideo() {
+        updateCameraOrientationClass();
         if (video.parentElement !== selfiePreview) {
           selfiePreview.insertBefore(video, photoCountdown);
         }
       }
 
       function restoreVideoPanel() {
+        video.classList.remove("camera-rotated");
         if (video.parentElement !== videoPanel) {
           videoPanel.insertBefore(video, handCanvas);
         }
@@ -2849,6 +2890,7 @@
         status.textContent = "กล้องพร้อมแล้ว บีบนิ้วโป้งกับนิ้วชี้เพื่อเลือกไพ่";
         startCamera.disabled = true;
         resizeCanvas();
+        updateCameraOrientationClass();
         return true;
       }
 
@@ -3200,6 +3242,7 @@
           seedAtmosphere();
           if (!selected) layoutCards(true);
           resizeCanvas();
+          updateCameraOrientationClass();
         });
         stage.addEventListener("pointermove", event => {
           if (pointer.active) return;
