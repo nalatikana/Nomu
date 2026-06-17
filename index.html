@@ -1097,6 +1097,10 @@
       width: auto;
       min-width: min(380px, calc(100vw - 24px));
       padding: 8px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      pointer-events: none;
     }
 
     .reading.card-only .fortune,
@@ -1157,6 +1161,24 @@
       gap: 8px;
       justify-content: flex-end;
       margin-top: 12px;
+    }
+
+    .reading.card-only .reading-actions {
+      position: fixed;
+      z-index: 18;
+      left: 50%;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(520px, calc(100vw - 24px));
+      display: flex;
+      justify-content: center;
+      padding: 10px;
+      margin: 0;
+      border: 1px solid rgba(215, 247, 170, .32);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(3, 10, 8, .92), rgba(19, 38, 24, .82));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 44px rgba(158, 214, 111, .24), inset 0 0 30px rgba(234, 209, 138, .06);
     }
 
     .video-panel {
@@ -1690,6 +1712,9 @@
           <button type="button" data-photo-edit="up">เลื่อนขึ้น</button>
           <button type="button" data-photo-edit="reset">ตรงกลาง</button>
           <button type="button" data-photo-edit="down">เลื่อนลง</button>
+          <button type="button" data-photo-edit="rotateLeft">หมุนซ้าย</button>
+          <button type="button" data-photo-edit="rotateReset">ไม่หมุน</button>
+          <button type="button" data-photo-edit="rotateRight">หมุนขวา</button>
         </div>
         <div class="panel-actions">
           <button id="retakeIntroPhoto" type="button">ถ่ายใหม่</button>
@@ -1944,7 +1969,7 @@
       let playerPhoto = "";
       let pendingPhoto = "";
       let pendingSourceCanvas = null;
-      let photoEdit = { y: 0 };
+      let photoEdit = { y: 0, rotation: 0 };
       let currentReward = "";
       let lastDownloadCanvas = null;
       let resultResetTimer = null;
@@ -2045,7 +2070,7 @@
         playerPhoto = "";
         pendingPhoto = "";
         pendingSourceCanvas = null;
-        photoEdit = { y: 0 };
+        photoEdit = { y: 0, rotation: 0 };
         photoReady = false;
         handGateReady = false;
         hasPreparedHandDeal = false;
@@ -2101,7 +2126,7 @@
         const targetAspect = 87.2 / 45.2;
         const outputWidth = 1400;
         const outputHeight = Math.round(outputWidth / targetAspect);
-        const source = pendingSourceCanvas;
+        const source = getEditedPhotoSource();
 
         const canvas = document.createElement("canvas");
         canvas.width = outputWidth;
@@ -2135,6 +2160,30 @@
         return { sx, sy, sw, sh };
       }
 
+      function getEditedPhotoSource() {
+        const turns = (((photoEdit.rotation || 0) % 4) + 4) % 4;
+        if (!turns) return pendingSourceCanvas;
+        const source = pendingSourceCanvas;
+        const rotated = document.createElement("canvas");
+        rotated.width = turns % 2 ? source.height : source.width;
+        rotated.height = turns % 2 ? source.width : source.height;
+        const ctx = rotated.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        if (turns === 1) {
+          ctx.translate(rotated.width, 0);
+          ctx.rotate(Math.PI / 2);
+        } else if (turns === 2) {
+          ctx.translate(rotated.width, rotated.height);
+          ctx.rotate(Math.PI);
+        } else {
+          ctx.translate(0, rotated.height);
+          ctx.rotate(-Math.PI / 2);
+        }
+        ctx.drawImage(source, 0, 0);
+        return rotated;
+      }
+
       function grabCameraFrame() {
         pendingSourceCanvas = makeNormalizedVideoFrame();
         return renderEditedPhotoDataUrl(.94);
@@ -2162,7 +2211,7 @@
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
-        const source = pendingSourceCanvas;
+        const source = getEditedPhotoSource();
         const targetAspect = width / height;
         const crop = getCoverCrop(source, targetAspect);
         ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
@@ -3330,7 +3379,7 @@
           return false;
         }
         pendingSourceCanvas = makeNormalizedVideoFrame();
-        photoEdit = { y: 0 };
+        photoEdit = { y: 0, rotation: 0 };
         const src = renderEditedPhotoDataUrl(.92);
         if (storePlayerPhoto) {
           playerPhoto = src;
@@ -3346,7 +3395,7 @@
       }
 
       function requestIntroPhoto() {
-        photoEdit = { y: 0 };
+        photoEdit = { y: 0, rotation: 0 };
         const src = grabCameraFrame();
         if (!src) {
           showToast("กล้องยังไม่พร้อม ลองถ่ายอีกครั้ง");
@@ -3464,6 +3513,9 @@
             if (action === "up") photoEdit.y = Math.max(-.45, photoEdit.y - .08);
             if (action === "down") photoEdit.y = Math.min(.45, photoEdit.y + .08);
             if (action === "reset") photoEdit.y = 0;
+            if (action === "rotateLeft") photoEdit.rotation = (photoEdit.rotation || 0) - 1;
+            if (action === "rotateRight") photoEdit.rotation = (photoEdit.rotation || 0) + 1;
+            if (action === "rotateReset") photoEdit.rotation = 0;
             drawPhotoEditorPreview();
           });
         });
