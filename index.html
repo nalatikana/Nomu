@@ -2631,16 +2631,12 @@
           card.x = innerWidth / 2 + Math.cos(angle) * circleRadius - cardW / 2;
           card.y = centerY + Math.sin(angle) * circleRadius - cardH / 2;
           card.rot = angle * 180 / Math.PI + 90;
-          if (index === 0) {
-            card.x = innerWidth / 2 - cardW / 2;
-            card.rot = 0;
-          }
-          card.z = index === 0 ? 260 : index;
+          card.z = index;
           const vars = {
             x: card.x - stage.clientWidth / 2,
             y: card.y - stage.clientHeight / 2,
             z: card.z,
-            zIndex: index === 0 ? 6 : 2,
+            zIndex: 2,
             rotationX: 0,
             rotationY: 0,
             rotationZ: card.rot,
