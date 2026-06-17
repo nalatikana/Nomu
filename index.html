@@ -1185,6 +1185,7 @@
       right: 14px;
       bottom: 14px;
       width: clamp(132px, 18vw, 230px);
+      --camera-preview-aspect: 4 / 3;
       border-radius: 8px;
       overflow: hidden;
       border: 1px solid rgba(103, 232, 249, .34);
@@ -1195,7 +1196,7 @@
     .video-panel video,
     .video-panel canvas {
       width: 100%;
-      aspect-ratio: 4 / 3;
+      aspect-ratio: var(--camera-preview-aspect);
       display: block;
       object-fit: cover;
       transform: scaleX(-1);
@@ -1204,6 +1205,12 @@
     .video-panel canvas {
       position: absolute;
       inset: 0;
+    }
+
+    .video-panel video.camera-rotated {
+      object-fit: cover;
+      transform: rotate(90deg) scaleY(-1);
+      transform-origin: center;
     }
 
     .photo-preview {
@@ -1910,6 +1917,8 @@
       let customImages = [];
       let lastTrail = 0;
       let dragOffset = { x: 0, y: 0 };
+      let lastHandFrame = 0;
+      let isSendingHandFrame = false;
 
       function showToast(message) {
         toast.textContent = message;
@@ -2000,7 +2009,16 @@
       }
 
       function updateCameraOrientationClass() {
-        video.classList.toggle("camera-rotated", shouldRotateCameraFrame());
+        const rotate = shouldRotateCameraFrame();
+        video.classList.toggle("camera-rotated", rotate);
+        updateCameraPreviewAspect();
+      }
+
+      function updateCameraPreviewAspect() {
+        if (!video.videoWidth || !video.videoHeight) return;
+        const displayWidth = shouldRotateCameraFrame() ? video.videoHeight : video.videoWidth;
+        const displayHeight = shouldRotateCameraFrame() ? video.videoWidth : video.videoHeight;
+        videoPanel.style.setProperty("--camera-preview-aspect", `${displayWidth} / ${displayHeight}`);
       }
 
       function makeNormalizedVideoFrame() {
@@ -3016,18 +3034,26 @@
         });
         hands.setOptions({
           maxNumHands: 1,
-          modelComplexity: 1,
-          minDetectionConfidence: .65,
-          minTrackingConfidence: .65
+          modelComplexity: 0,
+          minDetectionConfidence: .6,
+          minTrackingConfidence: .6
         });
         hands.onResults(onHandResults);
 
         camera = new Camera(video, {
           onFrame: async () => {
-            if (hands) await hands.send({ image: video });
+            const now = performance.now();
+            if (!hands || isSendingHandFrame || now - lastHandFrame < 90) return;
+            lastHandFrame = now;
+            isSendingHandFrame = true;
+            try {
+              await hands.send({ image: video });
+            } finally {
+              isSendingHandFrame = false;
+            }
           },
-          width: 640,
-          height: 480
+          width: 480,
+          height: 360
         });
         await camera.start();
         soundHooks.camera();
@@ -3039,12 +3065,20 @@
       }
 
       function onHandResults(results) {
+        updateCameraPreviewAspect();
         resizeCanvas();
         handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
         handCtx.save();
-        handCtx.scale(-1, 1);
-        handCtx.translate(-handCanvas.width, 0);
-        handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
+        if (shouldRotateCameraFrame()) {
+          handCtx.translate(handCanvas.width, 0);
+          handCtx.rotate(Math.PI / 2);
+          handCtx.scale(1, -1);
+          handCtx.drawImage(results.image, 0, 0, handCanvas.height, handCanvas.width);
+        } else {
+          handCtx.scale(-1, 1);
+          handCtx.translate(-handCanvas.width, 0);
+          handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
+        }
         if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
           const landmarks = results.multiHandLandmarks[0];
           const openFingerCount = countOpenFingers(landmarks);
