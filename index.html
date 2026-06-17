@@ -2859,6 +2859,15 @@
         return `${baseUrl}#nomu-card=${encodeURIComponent(imageDataUrl)}`;
       }
 
+      async function drawQrPayload(payload) {
+        await QRCode.toCanvas(downloadQrCanvas, payload, {
+          width: 220,
+          margin: 1,
+          errorCorrectionLevel: "L",
+          color: { dark: "#0b0f0c", light: "#ffffff" }
+        });
+      }
+
       async function getQrTargetFromCanvas(canvas) {
         const configuredBuilder = window.NOMU_QR_URL_BUILDER;
         if (typeof configuredBuilder === "function") {
@@ -2890,13 +2899,14 @@
 
         if (window.QRCode?.toCanvas) {
           const attempts = [
-            [150, .24],
-            [132, .2],
-            [116, .17],
-            [100, .14],
-            [86, .12],
-            [74, .1],
-            [64, .08]
+            [96, .16],
+            [84, .14],
+            [72, .12],
+            [60, .1],
+            [52, .09],
+            [44, .08],
+            [36, .07],
+            [30, .06]
           ];
 
           for (const [width, quality] of attempts) {
@@ -2904,20 +2914,21 @@
               background: "#101410",
               type: "image/jpeg"
             });
-            const compactPageUrl = makeQrCardUrl(compactImageUrl);
-            if (compactPageUrl.length > 2600) continue;
             try {
-              await QRCode.toCanvas(downloadQrCanvas, compactPageUrl, {
-                width: 220,
-                margin: 1,
-                errorCorrectionLevel: "L",
-                color: { dark: "#0b0f0c", light: "#ffffff" }
-              });
-              qrStatus.textContent = `สแกนเพื่อเปิดรูปบนอีกเครื่อง (${width}px) ส่วนรูปเต็มดาวน์โหลดไว้บนเครื่องนี้แล้ว`;
+              await drawQrPayload(compactImageUrl);
+              qrStatus.textContent = `สแกนเพื่อเปิดรูปตัวอย่างบนอีกเครื่อง (${width}px) รูปเต็มดาวน์โหลดไว้บนเครื่องนี้แล้ว`;
               return;
             } catch (error) {
               console.warn("QR image too large, retrying smaller", width, error);
             }
+          }
+
+          try {
+            await drawQrPayload(location.href.split("#")[0]);
+            qrStatus.textContent = "QR นี้เปิดหน้าเว็บ NOMU ได้ แต่รูปใหญ่เกินกว่าจะฝังใน QR โดยตรง ต้องใช้ Share เพื่อส่งรูปเต็ม";
+            return;
+          } catch (error) {
+            console.warn("Fallback page QR failed", error);
           }
         }
 
