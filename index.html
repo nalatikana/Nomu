@@ -754,9 +754,9 @@
       width: 100%;
       max-height: min(58svh, 520px);
       object-fit: contain;
-      border: 1px solid rgba(215, 247, 170, .2);
+      border: 0;
       border-radius: 8px;
-      background: rgba(255, 255, 255, .06);
+      background: transparent;
     }
 
     .qr-box {
@@ -1113,7 +1113,6 @@
       padding: 8px;
     }
 
-    .reading.card-only .reading-title,
     .reading.card-only .fortune,
     .reading.card-only .ai-reading {
       display: none;
@@ -1147,12 +1146,7 @@
     }
 
     .reading-title {
-      margin: 0 0 6px;
-      color: var(--gold);
-      font-size: 13px;
-      line-height: 1.2;
-      text-transform: uppercase;
-      letter-spacing: 0;
+      display: none;
     }
 
     .fortune {
@@ -1679,6 +1673,7 @@
         </div>
         <div class="panel-actions">
           <button id="qrShareCard" type="button">Share</button>
+          <button id="qrPrintCard" type="button">Print</button>
           <button id="qrCloseHome" type="button">กลับหน้าแรก</button>
         </div>
       </div>
@@ -1946,6 +1941,7 @@
       const downloadQrCanvas = document.getElementById("downloadQrCanvas");
       const qrStatus = document.getElementById("qrStatus");
       const qrShareCard = document.getElementById("qrShareCard");
+      const qrPrintCard = document.getElementById("qrPrintCard");
       const qrCloseHome = document.getElementById("qrCloseHome");
       const photoEditButtons = Array.from(document.querySelectorAll("[data-photo-edit]"));
 
@@ -2842,17 +2838,20 @@
         });
       }
 
-      function makeQrImageDataUrl(sourceCanvas, width, quality) {
+      function makeQrImageDataUrl(sourceCanvas, width, quality, options = {}) {
+        const { background = "", type = "image/png" } = options;
         const target = document.createElement("canvas");
         target.width = width;
         target.height = Math.max(1, Math.round(sourceCanvas.height * (width / sourceCanvas.width)));
         const ctx = target.getContext("2d");
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, target.width, target.height);
+        if (background) {
+          ctx.fillStyle = background;
+          ctx.fillRect(0, 0, target.width, target.height);
+        }
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
         ctx.drawImage(sourceCanvas, 0, 0, target.width, target.height);
-        return target.toDataURL("image/jpeg", quality);
+        return target.toDataURL(type, quality);
       }
 
       function makeQrCardUrl(imageDataUrl) {
@@ -2891,17 +2890,20 @@
 
         if (window.QRCode?.toCanvas) {
           const attempts = [
-            [180, .28],
-            [160, .24],
-            [140, .2],
-            [124, .18],
-            [110, .16],
-            [96, .14],
-            [84, .12]
+            [150, .24],
+            [132, .2],
+            [116, .17],
+            [100, .14],
+            [86, .12],
+            [74, .1],
+            [64, .08]
           ];
 
           for (const [width, quality] of attempts) {
-            const compactImageUrl = makeQrImageDataUrl(canvas, width, quality);
+            const compactImageUrl = makeQrImageDataUrl(canvas, width, quality, {
+              background: "#101410",
+              type: "image/jpeg"
+            });
             const compactPageUrl = makeQrCardUrl(compactImageUrl);
             if (compactPageUrl.length > 2600) continue;
             try {
@@ -2921,15 +2923,15 @@
 
         downloadQrCanvas.width = 220;
         downloadQrCanvas.height = 220;
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#101410";
         ctx.fillRect(0, 0, 220, 220);
-        ctx.fillStyle = "#111111";
+        ctx.fillStyle = "#fffdf4";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = "700 18px Kanit, Arial, sans-serif";
-        ctx.fillText("ใช้ Share", 110, 98);
+        ctx.fillText("สร้าง QR ไม่สำเร็จ", 110, 98);
         ctx.font = "500 13px Kanit, Arial, sans-serif";
-        ctx.fillText("หรือเชื่อมระบบฝากไฟล์", 110, 126);
+        ctx.fillText("ลองกด Share หรือ Download ใหม่", 110, 126);
         qrStatus.textContent = "รูปยังใหญ่เกินกว่าจะฝังใน QR ได้ แนะนำใช้ Share หรือเชื่อมระบบฝากไฟล์เพื่อได้รูปเต็ม";
       }
 
@@ -2973,6 +2975,12 @@
         link.download = `nomu-daily-fortune-${order}.png`;
         link.href = canvas.toDataURL("image/png");
         link.click();
+        await showDownloadQr(canvas);
+      }
+
+      async function showShareQr() {
+        const canvas = lastDownloadCanvas || await renderSelectedCard();
+        if (!canvas) return;
         await showDownloadQr(canvas);
       }
 
@@ -3507,10 +3515,11 @@
           showToast("คืนค่า default แล้ว");
         });
         downloadCard.addEventListener("click", downloadSelectedCard);
-        shareCard.addEventListener("click", shareSelectedCard);
+        shareCard.addEventListener("click", showShareQr);
         printCard.addEventListener("click", printSelectedCard);
         homeCard.addEventListener("click", restartExperience);
-        qrShareCard.addEventListener("click", shareSelectedCard);
+        qrShareCard.addEventListener("click", showShareQr);
+        qrPrintCard.addEventListener("click", printSelectedCard);
         qrCloseHome.addEventListener("click", restartExperience);
         startCamera.addEventListener("click", () => initHands().catch(error => {
           console.error(error);
