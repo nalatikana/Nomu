@@ -1612,8 +1612,8 @@
 
     <section class="overlay" id="downloadQrModal" aria-label="download qr">
       <div class="panel qr-panel">
-        <h2>ดาวน์โหลดลงมือถือ</h2>
-        <p>สแกน QR เพื่อเปิดภาพนี้บนมือถืออีกเครื่อง ถ้ายังไม่มีลิงก์สาธารณะ ให้ใช้ปุ่ม Share แทน</p>
+        <h2>สแกนเพื่อรับรูป</h2>
+        <p>หลังดาวน์โหลด ระบบจะแสดง QR สำหรับให้อีกเครื่องสแกนเปิดรูปการ์ดได้ทันที</p>
         <div class="qr-layout">
           <img id="qrPreview" alt="downloaded NOMU card preview">
           <div class="qr-box">
@@ -2786,6 +2786,19 @@
         });
       }
 
+      function makeQrImageDataUrl(sourceCanvas, width, quality) {
+        const target = document.createElement("canvas");
+        target.width = width;
+        target.height = Math.max(1, Math.round(sourceCanvas.height * (width / sourceCanvas.width)));
+        const ctx = target.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, target.width, target.height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(sourceCanvas, 0, 0, target.width, target.height);
+        return target.toDataURL("image/jpeg", quality);
+      }
+
       async function getQrTargetFromCanvas(canvas) {
         const configuredBuilder = window.NOMU_QR_URL_BUILDER;
         if (typeof configuredBuilder === "function") {
@@ -2793,8 +2806,6 @@
           return configuredBuilder({ file, canvas, order: storageGet("nomuCurrentOrder") || "" });
         }
 
-        const dataUrl = canvas.toDataURL("image/png");
-        if (dataUrl.length <= 2500) return dataUrl;
         return "";
       }
 
@@ -2818,6 +2829,33 @@
           return;
         }
 
+        if (window.QRCode?.toCanvas) {
+          const attempts = [
+            [420, .62],
+            [360, .54],
+            [300, .48],
+            [260, .42],
+            [220, .36],
+            [180, .32]
+          ];
+
+          for (const [width, quality] of attempts) {
+            const compactImageUrl = makeQrImageDataUrl(canvas, width, quality);
+            try {
+              await QRCode.toCanvas(downloadQrCanvas, compactImageUrl, {
+                width: 220,
+                margin: 1,
+                errorCorrectionLevel: "L",
+                color: { dark: "#0b0f0c", light: "#ffffff" }
+              });
+              qrStatus.textContent = `สแกนเพื่อเปิดรูปย่อบนอีกเครื่อง (${width}px) ส่วนรูปเต็มดาวน์โหลดไว้บนเครื่องนี้แล้ว`;
+              return;
+            } catch (error) {
+              console.warn("QR image too large, retrying smaller", width, error);
+            }
+          }
+        }
+
         downloadQrCanvas.width = 220;
         downloadQrCanvas.height = 220;
         ctx.fillStyle = "#ffffff";
@@ -2829,7 +2867,7 @@
         ctx.fillText("ใช้ Share", 110, 98);
         ctx.font = "500 13px Kanit, Arial, sans-serif";
         ctx.fillText("หรือเชื่อมระบบฝากไฟล์", 110, 126);
-        qrStatus.textContent = "QR เปิดบนมือถืออีกเครื่องต้องมี URL สาธารณะก่อน เพราะรูปใหญ่เกินกว่าจะฝังใน QR ได้";
+        qrStatus.textContent = "รูปยังใหญ่เกินกว่าจะฝังใน QR ได้ แนะนำใช้ Share หรือเชื่อมระบบฝากไฟล์เพื่อได้รูปเต็ม";
       }
 
       async function renderSelectedCard({ receipt = false } = {}) {
