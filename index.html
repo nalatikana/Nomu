@@ -2770,6 +2770,8 @@
         choiceModal.classList.remove("visible");
         gsap.to(choiceModal, { opacity: 0, visibility: "hidden", duration: .2, ease: "power2.out" });
         if (!attach) clearCardImage(card);
+        gsap.killTweensOf(reading);
+        gsap.set(reading, { opacity: 1, y: 0, visibility: "visible" });
         reading.classList.add("visible", "card-only");
         scheduleResultReset();
         soundHooks.flip();
