@@ -779,6 +779,15 @@
       background: #fff;
     }
 
+    #downloadQrImage {
+      width: min(220px, 44vw);
+      height: min(220px, 44vw);
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      display: none;
+    }
+
     #qrStatus {
       margin: 0;
       color: var(--muted);
@@ -1668,6 +1677,7 @@
           <img id="qrPreview" alt="downloaded NOMU card preview">
           <div class="qr-box">
             <canvas id="downloadQrCanvas"></canvas>
+            <img id="downloadQrImage" alt="QR code">
             <p id="qrStatus">กำลังเตรียม QR...</p>
           </div>
         </div>
@@ -1939,6 +1949,7 @@
       const downloadQrModal = document.getElementById("downloadQrModal");
       const qrPreview = document.getElementById("qrPreview");
       const downloadQrCanvas = document.getElementById("downloadQrCanvas");
+      const downloadQrImage = document.getElementById("downloadQrImage");
       const qrStatus = document.getElementById("qrStatus");
       const qrShareCard = document.getElementById("qrShareCard");
       const qrPrintCard = document.getElementById("qrPrintCard");
@@ -1994,6 +2005,7 @@
       }
 
       function showReadyGuide(title, text) {
+        reading.classList.remove("visible", "card-only");
         readyGuideTitle.textContent = title;
         readyGuideText.textContent = text;
         readyGuide.hidden = false;
@@ -2860,12 +2872,21 @@
       }
 
       async function drawQrPayload(payload) {
+        downloadQrImage.style.display = "none";
+        downloadQrCanvas.style.display = "block";
         await QRCode.toCanvas(downloadQrCanvas, payload, {
           width: 220,
           margin: 1,
           errorCorrectionLevel: "L",
           color: { dark: "#0b0f0c", light: "#ffffff" }
         });
+      }
+
+      function showQrImageFallback(payload) {
+        const src = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(payload)}`;
+        downloadQrCanvas.style.display = "none";
+        downloadQrImage.style.display = "block";
+        downloadQrImage.src = src;
       }
 
       async function getQrTargetFromCanvas(canvas) {
@@ -2884,6 +2905,9 @@
         qrStatus.textContent = "กำลังเตรียม QR...";
         const ctx = downloadQrCanvas.getContext("2d");
         ctx.clearRect(0, 0, downloadQrCanvas.width, downloadQrCanvas.height);
+        downloadQrCanvas.style.display = "block";
+        downloadQrImage.style.display = "none";
+        downloadQrImage.removeAttribute("src");
         showOverlay(downloadQrModal);
 
         const qrTarget = await getQrTargetFromCanvas(canvas);
@@ -2923,27 +2947,21 @@
             }
           }
 
+          const pageUrl = location.href.split("#")[0];
           try {
-            await drawQrPayload(location.href.split("#")[0]);
+            await drawQrPayload(pageUrl);
             qrStatus.textContent = "QR นี้เปิดหน้าเว็บ NOMU ได้ แต่รูปใหญ่เกินกว่าจะฝังใน QR โดยตรง ต้องใช้ Share เพื่อส่งรูปเต็ม";
             return;
           } catch (error) {
             console.warn("Fallback page QR failed", error);
+            showQrImageFallback(pageUrl);
+            qrStatus.textContent = "สแกนเพื่อเปิดหน้าเว็บ NOMU ได้ ส่วนรูปเต็มให้ใช้ปุ่ม Share หรือ Download";
+            return;
           }
         }
 
-        downloadQrCanvas.width = 220;
-        downloadQrCanvas.height = 220;
-        ctx.fillStyle = "#101410";
-        ctx.fillRect(0, 0, 220, 220);
-        ctx.fillStyle = "#fffdf4";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = "700 18px Kanit, Arial, sans-serif";
-        ctx.fillText("สร้าง QR ไม่สำเร็จ", 110, 98);
-        ctx.font = "500 13px Kanit, Arial, sans-serif";
-        ctx.fillText("ลองกด Share หรือ Download ใหม่", 110, 126);
-        qrStatus.textContent = "รูปยังใหญ่เกินกว่าจะฝังใน QR ได้ แนะนำใช้ Share หรือเชื่อมระบบฝากไฟล์เพื่อได้รูปเต็ม";
+        showQrImageFallback(location.href.split("#")[0]);
+        qrStatus.textContent = "สแกนเพื่อเปิดหน้าเว็บ NOMU ได้ ส่วนรูปเต็มให้ใช้ปุ่ม Share หรือ Download";
       }
 
       async function renderSelectedCard({ receipt = false } = {}) {
