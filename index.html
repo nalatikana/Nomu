@@ -142,47 +142,24 @@
       inset: 0;
       overflow: hidden;
       z-index: 0;
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, .24), rgba(0, 0, 0, .48)),
+        url("nomu-moon-background.jpg") center bottom / cover no-repeat;
     }
 
     .backdrop::before {
       content: "";
       position: absolute;
       z-index: 1;
-      left: -8%;
-      right: -8%;
-      bottom: -10%;
-      height: 42%;
+      inset: 0;
       background:
-        radial-gradient(ellipse at 12% 44%, rgba(255, 255, 255, .28), transparent 11%),
-        radial-gradient(ellipse at 28% 56%, rgba(0, 0, 0, .34), transparent 10%),
-        radial-gradient(ellipse at 48% 48%, rgba(255, 255, 255, .18), transparent 14%),
-        radial-gradient(ellipse at 70% 60%, rgba(0, 0, 0, .38), transparent 12%),
-        radial-gradient(ellipse at 86% 46%, rgba(255, 255, 255, .22), transparent 10%),
-        linear-gradient(180deg, rgba(238, 242, 247, .92) 0%, rgba(156, 163, 175, .78) 35%, rgba(37, 42, 54, .72) 72%, rgba(0, 0, 0, .98) 100%);
-      clip-path: polygon(0 32%, 7% 24%, 15% 27%, 22% 19%, 31% 25%, 39% 16%, 48% 23%, 58% 15%, 67% 24%, 76% 17%, 86% 25%, 94% 18%, 100% 27%, 100% 100%, 0 100%);
-      filter: contrast(1.18) saturate(.62);
-      opacity: .42;
+        radial-gradient(circle at 50% 46%, rgba(215, 247, 170, .08), transparent 34%),
+        linear-gradient(180deg, rgba(0, 0, 0, .06), rgba(0, 0, 0, .38));
       pointer-events: none;
     }
 
     .moon {
-      position: absolute;
-      width: min(90vw, 1120px);
-      aspect-ratio: 1;
-      left: 50%;
-      top: 56%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background:
-        radial-gradient(circle at 28% 68%, rgba(20, 23, 31, .82), transparent 7%),
-        radial-gradient(circle at 40% 54%, rgba(42, 45, 54, .66), transparent 8%),
-        radial-gradient(circle at 61% 44%, rgba(55, 58, 68, .55), transparent 5%),
-        radial-gradient(circle at 74% 31%, rgba(45, 48, 58, .48), transparent 4%),
-        radial-gradient(circle at 36% 36%, rgba(255, 255, 255, .82), transparent 4%),
-        radial-gradient(ellipse at 54% 50%, rgba(255, 255, 255, .96), rgba(190, 197, 211, .82) 32%, rgba(82, 87, 101, .58) 57%, transparent 73%);
-      filter: blur(.08px) saturate(.86) contrast(1.18);
-      opacity: .96;
-      animation: moonPulse 8s ease-in-out infinite;
+      display: none;
     }
 
     .moon::before {
@@ -1983,6 +1960,7 @@
       let lastHandFrame = 0;
       let isSendingHandFrame = false;
       let isDealingCards = false;
+      let hasPreparedHandDeal = false;
 
       function showToast(message) {
         toast.textContent = message;
@@ -2013,6 +1991,10 @@
 
       function showReadyGuide(title, text) {
         hideReadingPanel();
+        if (!selected && cards.length && !isDealingCards && !hasPreparedHandDeal) {
+          hasPreparedHandDeal = true;
+          layoutCards(true, true);
+        }
         readyGuideTitle.textContent = title;
         readyGuideText.textContent = text;
         readyGuide.hidden = false;
@@ -2066,6 +2048,7 @@
         photoEdit = { y: 0 };
         photoReady = false;
         handGateReady = false;
+        hasPreparedHandDeal = false;
         openHandFrames = 0;
         clearReadyCountdown();
         hideReadyGuide();
@@ -2202,6 +2185,7 @@
         restoreVideoPanel();
         hideOverlay(photoConfirm);
         handGateReady = false;
+        hasPreparedHandDeal = false;
         openHandFrames = 0;
         updateCameraStatus("แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่");
         showReadyGuide("แบมือ 5 นิ้ว", "ถ้าพร้อมแล้ว ระบบจะนับถอยหลัง 3 วิ");
@@ -3297,6 +3281,7 @@
         pendingReveal = null;
         dragged = null;
         hovered = null;
+        hasPreparedHandDeal = false;
         currentReward = "";
         lastDownloadCanvas = null;
         rewardBadge.textContent = "";
