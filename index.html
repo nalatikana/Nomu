@@ -1166,6 +1166,7 @@
     .reading.card-only .reading-actions {
       position: fixed;
       z-index: 18;
+      pointer-events: auto;
       left: 50%;
       bottom: max(14px, env(safe-area-inset-bottom));
       transform: translateX(-50%);
@@ -2626,7 +2627,7 @@
         cards.forEach((card, index) => {
           if (card === selected) return;
           gsap.killTweensOf(card.el);
-          const angle = (index / cards.length) * Math.PI * 2 - Math.PI / 2;
+          const angle = ((index + 1) / cards.length) * Math.PI * 2 - Math.PI / 2;
           const dealDelay = animate ? index * .085 : 0;
           card.x = innerWidth / 2 + Math.cos(angle) * circleRadius - cardW / 2;
           card.y = centerY + Math.sin(angle) * circleRadius - cardH / 2;
