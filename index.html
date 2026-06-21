@@ -3194,6 +3194,58 @@
         return receiptCanvas;
       }
 
+      function composePrintPages(cardCanvas) {
+        const size = 576;
+        const pad = 22;
+        const pages = [];
+        const cardPage = document.createElement("canvas");
+        cardPage.width = size;
+        cardPage.height = size;
+        const cardCtx = cardPage.getContext("2d");
+        cardCtx.fillStyle = "#fff";
+        cardCtx.fillRect(0, 0, size, size);
+        const cardBox = size - pad * 2;
+        const cardScale = Math.min(cardBox / cardCanvas.width, cardBox / cardCanvas.height);
+        const cardWidth = Math.round(cardCanvas.width * cardScale);
+        const cardHeight = Math.round(cardCanvas.height * cardScale);
+        cardCtx.drawImage(
+          cardCanvas,
+          Math.round((size - cardWidth) / 2),
+          Math.round((size - cardHeight) / 2),
+          cardWidth,
+          cardHeight
+        );
+        pages.push(cardPage);
+
+        if (currentReward) {
+          const ticketPage = document.createElement("canvas");
+          ticketPage.width = size;
+          ticketPage.height = size;
+          const ctx = ticketPage.getContext("2d");
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, size, size);
+          ctx.strokeStyle = "#111";
+          ctx.lineWidth = 4;
+          ctx.strokeRect(pad, pad, size - pad * 2, size - pad * 2);
+          ctx.fillStyle = "#111";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "alphabetic";
+          ctx.font = "900 34px Raleway, Kanit, Arial, sans-serif";
+          ctx.fillText("NOMU MATCHA", size / 2, 82);
+          ctx.font = "700 22px Kanit, Arial, sans-serif";
+          ctx.fillText(`Order: ${storageGet("nomuCurrentOrder") || "-"}`, size / 2, 120);
+          ctx.font = "900 52px Kanit, Arial, sans-serif";
+          drawCenteredLines(ctx, currentReward, size / 2, 220, size - pad * 4, 58, 2);
+          ctx.font = "800 22px Kanit, Arial, sans-serif";
+          ctx.fillText("แสดงตั๋วนี้ให้พนักงานก่อนชำระเงิน", size / 2, 434);
+          ctx.font = "800 18px Raleway, Kanit, Arial, sans-serif";
+          ctx.fillText("MATCHA FOR THE MODERN MIND.", size / 2, 480);
+          pages.push(ticketPage);
+        }
+
+        return pages;
+      }
+
       async function canvasToFile(canvas, filename = "nomu-daily-fortune.png") {
         return new Promise(resolve => {
           canvas.toBlob(blob => {
@@ -3241,8 +3293,12 @@
       }
 
       async function uploadCardImage(canvas) {
-        const supabaseUrl = await uploadCardToSupabase(canvas);
-        if (supabaseUrl) return supabaseUrl;
+        try {
+          const supabaseUrl = await uploadCardToSupabase(canvas);
+          if (supabaseUrl) return supabaseUrl;
+        } catch (error) {
+          console.warn("supabase upload failed, falling back to endpoint", error);
+        }
         const endpoint = window.NOMU_CARD_UPLOAD_ENDPOINT || storageGet("nomuCardUploadEndpoint") || "";
         if (!endpoint) return "";
         if (!/^https?:\/\//i.test(endpoint)) {
@@ -3292,7 +3348,7 @@
           if (!qrTarget) {
             downloadQrCanvas.style.display = "none";
             downloadQrImage.style.display = "none";
-            qrStatus.textContent = "ยังไม่มีลิงก์รูปการ์ดจริง ต้องตั้งค่า NOMU_CARD_UPLOAD_ENDPOINT หรือ NOMU_QR_URL_BUILDER เพื่ออัปโหลดรูปก่อนสร้าง QR";
+            qrStatus.textContent = "ยังไม่มีลิงก์รูปการ์ดจริง ให้ตั้งค่า Supabase ในหน้า Admin หรือใส่ QR upload endpoint ก่อนสร้าง QR";
             return;
           }
           if (window.QRCode?.toCanvas) {
@@ -3305,7 +3361,7 @@
           console.error(error);
           downloadQrCanvas.style.display = "none";
           downloadQrImage.style.display = "none";
-          qrStatus.textContent = "อัปโหลดรูปเพื่อสร้างลิงก์ไม่สำเร็จ ตรวจสอบ endpoint หรือระบบฝากไฟล์";
+          qrStatus.textContent = `อัปโหลดรูปเพื่อสร้าง QR ไม่สำเร็จ: ${error?.message || "ตรวจสอบ Supabase, bucket, table หรือ policy"}`;
         }
       }
 
@@ -3358,9 +3414,9 @@
       }
 
       async function printSelectedCard() {
-        const canvas = await renderSelectedCard({ receipt: true });
-        if (!canvas) return;
-        const imageUrl = canvas.toDataURL("image/png");
+        const cardCanvas = await renderSelectedCard();
+        if (!cardCanvas) return;
+        const pages = composePrintPages(cardCanvas);
         const frame = document.createElement("iframe");
         frame.style.position = "fixed";
         frame.style.right = "0";
@@ -3371,29 +3427,32 @@
         document.body.appendChild(frame);
         const printDoc = frame.contentDocument;
         const style = printDoc.createElement("style");
-        style.textContent = "@page{size:80mm 80mm;margin:0}html,body{width:80mm;margin:0;padding:0;background:#fff}img{width:80mm;height:auto;display:block;page-break-inside:avoid}";
-        const image = printDoc.createElement("img");
-        image.src = imageUrl;
-        image.alt = "NOMU Daily Fortune";
+        style.textContent = "@page{size:80mm 80mm;margin:0}html,body{width:80mm;margin:0;padding:0;background:#fff}.print-page{width:80mm;height:80mm;margin:0;padding:0;display:block;page-break-after:always;break-after:page}.print-page:last-child{page-break-after:auto;break-after:auto}.print-page img{width:80mm;height:80mm;object-fit:contain;display:block}";
         printDoc.documentElement.style.margin = "0";
         printDoc.documentElement.style.padding = "0";
         printDoc.body.style.margin = "0";
         printDoc.body.style.padding = "0";
         printDoc.body.style.background = "#fff";
         printDoc.head.appendChild(style);
-        image.style.width = "80mm";
-        image.style.height = "auto";
-        image.style.display = "block";
         printDoc.title = "NOMU Daily Fortune";
-        printDoc.body.appendChild(image);
-        image.onload = () => {
+        pages.forEach((pageCanvas, index) => {
+          const page = printDoc.createElement("section");
+          page.className = "print-page";
+          const image = printDoc.createElement("img");
+          image.src = pageCanvas.toDataURL("image/png");
+          image.alt = index === 0 ? "NOMU Daily Fortune card" : "NOMU reward ticket";
+          page.appendChild(image);
+          printDoc.body.appendChild(page);
+        });
+        const cleanup = () => {
+          frame.remove();
+          restartExperience();
+        };
+        frame.contentWindow.onafterprint = cleanup;
+        setTimeout(() => {
           frame.contentWindow.focus();
           frame.contentWindow.print();
-          setTimeout(() => {
-            frame.remove();
-            restartExperience();
-          }, 700);
-        };
+        }, 120);
       }
 
       function burst(x, y) {
