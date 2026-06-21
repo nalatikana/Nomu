@@ -830,6 +830,65 @@
       color: var(--matcha-soft);
     }
 
+    .admin-subgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .admin-subgrid input {
+      width: 100%;
+    }
+
+    .admin-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .usage-summary {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .usage-table-wrap {
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid rgba(215, 247, 170, .16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+      font-size: 12px;
+    }
+
+    .usage-table th,
+    .usage-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(235, 238, 244, .1);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .usage-table th {
+      color: var(--matcha-soft);
+      font-weight: 800;
+      background: rgba(3, 10, 8, .9);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .usage-table a {
+      color: var(--gold);
+    }
+
     .admin-options {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1769,6 +1828,40 @@
             <input id="adminUploadEndpoint" type="url" inputmode="url" placeholder="https://your-server.example/upload">
             <p class="admin-note">Endpoint ต้องรับ POST multipart/form-data ชื่อ file และส่ง URL รูปกลับมาเป็น text หรือ JSON เช่น {"url":"https://..."}</p>
           </div>
+          <div class="admin-field admin-wide-field">
+            <span>Supabase สำหรับ QR และประวัติการเล่น</span>
+            <div class="admin-subgrid">
+              <input id="adminSupabaseUrl" type="url" inputmode="url" placeholder="Supabase project URL">
+              <input id="adminSupabaseAnonKey" type="password" autocomplete="off" placeholder="Supabase anon key">
+              <input id="adminSupabaseBucket" type="text" placeholder="Storage bucket เช่น nomu-cards">
+              <input id="adminSupabaseTable" type="text" placeholder="Table เช่น nomu_card_logs">
+            </div>
+            <p class="admin-note">แนะนำใช้ bucket แบบ public สำหรับให้ QR เปิดรูปได้ทันที และเปิด RLS เฉพาะ insert/select ที่จำเป็นสำหรับ anon key</p>
+          </div>
+          <div class="admin-field admin-wide-field">
+            <span>ประวัติการใช้งาน</span>
+            <div class="admin-tools">
+              <button id="loadUsage" type="button">ดึงข้อมูลล่าสุด</button>
+              <button id="exportUsage" type="button">Export CSV</button>
+            </div>
+            <p class="usage-summary" id="usageSummary">ยังไม่ได้ดึงข้อมูล</p>
+            <div class="usage-table-wrap">
+              <table class="usage-table" id="usageTable">
+                <thead>
+                  <tr>
+                    <th>เวลา</th>
+                    <th>Order</th>
+                    <th>ข้อความ</th>
+                    <th>โปรโมชั่น</th>
+                    <th>รูปการ์ด</th>
+                  </tr>
+                </thead>
+                <tbody id="usageTableBody">
+                  <tr><td colspan="5">กดดึงข้อมูลล่าสุด</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
           <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
         </div>
         <div class="panel-actions">
@@ -1796,6 +1889,7 @@
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script>
     window.gsap ||= {
       to(targets, vars = {}) { applyVars(targets, vars); vars.onComplete?.(); return this; },
@@ -1939,10 +2033,18 @@
       const adminMessages = document.getElementById("adminMessages");
       const adminRewards = document.getElementById("adminRewards");
       const adminUploadEndpoint = document.getElementById("adminUploadEndpoint");
+      const adminSupabaseUrl = document.getElementById("adminSupabaseUrl");
+      const adminSupabaseAnonKey = document.getElementById("adminSupabaseAnonKey");
+      const adminSupabaseBucket = document.getElementById("adminSupabaseBucket");
+      const adminSupabaseTable = document.getElementById("adminSupabaseTable");
       const adminMessageItems = document.getElementById("adminMessageItems");
       const adminRewardItems = document.getElementById("adminRewardItems");
       const addAdminMessage = document.getElementById("addAdminMessage");
       const addAdminReward = document.getElementById("addAdminReward");
+      const loadUsage = document.getElementById("loadUsage");
+      const exportUsage = document.getElementById("exportUsage");
+      const usageSummary = document.getElementById("usageSummary");
+      const usageTableBody = document.getElementById("usageTableBody");
       const adminRewardCounterText = document.getElementById("adminRewardCounterText");
       const photoPrompt = document.getElementById("photoPrompt");
       const photoConfirm = document.getElementById("photoConfirm");
@@ -1984,6 +2086,7 @@
       let photoEdit = { y: 0, rotation: 0 };
       let currentReward = "";
       let lastDownloadCanvas = null;
+      let latestUsageRows = [];
       let resultResetTimer = null;
       let photoReady = false;
       let handGateReady = false;
@@ -2319,6 +2422,154 @@
         }
       }
 
+      function getSupabaseConfig() {
+        return {
+          url: (storageGet("nomuSupabaseUrl") || "").trim(),
+          anonKey: (storageGet("nomuSupabaseAnonKey") || "").trim(),
+          bucket: (storageGet("nomuSupabaseBucket") || "nomu-cards").trim(),
+          table: (storageGet("nomuSupabaseTable") || "nomu_card_logs").trim()
+        };
+      }
+
+      function hasSupabaseConfig(config = getSupabaseConfig()) {
+        return Boolean(config.url && config.anonKey && config.bucket && config.table);
+      }
+
+      function getSupabaseClient(config = getSupabaseConfig()) {
+        if (!hasSupabaseConfig(config)) return null;
+        if (!window.supabase?.createClient) {
+          throw new Error("Supabase library is not loaded");
+        }
+        return window.supabase.createClient(config.url, config.anonKey);
+      }
+
+      function safeFilePart(value) {
+        return String(value || "daily")
+          .trim()
+          .replace(/[^\w-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 80) || "daily";
+      }
+
+      function currentUsagePayload(cardUrl = "") {
+        return {
+          order_no: storageGet("nomuCurrentOrder") || "",
+          card_url: cardUrl,
+          fortune_text: fortuneText.textContent || "",
+          reward_text: currentReward || "",
+          created_at: new Date().toISOString(),
+          user_agent: navigator.userAgent || ""
+        };
+      }
+
+      async function uploadCardToSupabase(canvas) {
+        const config = getSupabaseConfig();
+        if (!hasSupabaseConfig(config)) return "";
+        const client = getSupabaseClient(config);
+        const file = await canvasToFile(canvas);
+        if (!file) return "";
+        const order = safeFilePart(storageGet("nomuCurrentOrder") || "daily");
+        const day = new Date().toISOString().slice(0, 10);
+        const path = `cards/${day}/${order}-${Date.now()}.png`;
+        const { error: uploadError } = await client.storage
+          .from(config.bucket)
+          .upload(path, file, { contentType: "image/png", upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: publicData } = client.storage.from(config.bucket).getPublicUrl(path);
+        const cardUrl = publicData?.publicUrl || "";
+        if (cardUrl) {
+          const { error: insertError } = await client
+            .from(config.table)
+            .insert(currentUsagePayload(cardUrl));
+          if (insertError) console.warn("usage log insert failed", insertError);
+        }
+        return cardUrl;
+      }
+
+      function renderUsageRows(rows = []) {
+        latestUsageRows = rows;
+        usageSummary.textContent = rows.length
+          ? `แสดงข้อมูลล่าสุด ${rows.length} รายการ`
+          : "ยังไม่มีข้อมูล";
+        usageTableBody.innerHTML = "";
+        if (!rows.length) {
+          usageTableBody.innerHTML = `<tr><td colspan="5">ยังไม่มีข้อมูล</td></tr>`;
+          return;
+        }
+        rows.forEach(row => {
+          const tr = document.createElement("tr");
+          const created = row.created_at ? new Date(row.created_at).toLocaleString("th-TH") : "-";
+          const cardUrl = row.card_url || row.image_url || row.url || "";
+          tr.innerHTML = `
+            <td>${escapeHtml(created)}</td>
+            <td>${escapeHtml(row.order_no || row.order || "-")}</td>
+            <td>${escapeHtml(row.fortune_text || row.message || "-")}</td>
+            <td>${escapeHtml(row.reward_text || row.reward || "-")}</td>
+            <td>${cardUrl ? `<a href="${escapeAttr(cardUrl)}" target="_blank" rel="noopener">เปิดรูป</a>` : "-"}</td>
+          `;
+          usageTableBody.appendChild(tr);
+        });
+      }
+
+      async function loadUsageRows() {
+        const config = getSupabaseConfig();
+        if (!hasSupabaseConfig(config)) {
+          showToast("ตั้งค่า Supabase ก่อนดึงข้อมูล");
+          return;
+        }
+        const client = getSupabaseClient(config);
+        usageSummary.textContent = "กำลังดึงข้อมูล...";
+        const { data, error } = await client
+          .from(config.table)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (error) {
+          console.error(error);
+          usageSummary.textContent = "ดึงข้อมูลไม่สำเร็จ ตรวจสอบ table/RLS";
+          showToast("ดึงข้อมูลไม่สำเร็จ");
+          return;
+        }
+        renderUsageRows(data || []);
+      }
+
+      function exportUsageCsv() {
+        if (!latestUsageRows.length) {
+          showToast("ดึงข้อมูลก่อน Export");
+          return;
+        }
+        const headers = ["created_at", "order_no", "fortune_text", "reward_text", "card_url"];
+        const csv = [
+          headers.join(","),
+          ...latestUsageRows.map(row => headers.map(key => csvCell(row[key] || "")).join(","))
+        ].join("\n");
+        const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `nomu-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function csvCell(value) {
+        return `"${String(value).replace(/"/g, '""')}"`;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[char]));
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value);
+      }
+
       function renderAdminList(container, values, placeholder) {
         container.innerHTML = "";
         const list = values.length ? values : [""];
@@ -2490,6 +2741,10 @@
         adminMessages.value = fortunes.join("\n");
         adminRewards.value = rewards.join("\n");
         adminUploadEndpoint.value = storageGet("nomuCardUploadEndpoint") || "";
+        adminSupabaseUrl.value = storageGet("nomuSupabaseUrl") || "";
+        adminSupabaseAnonKey.value = storageGet("nomuSupabaseAnonKey") || "";
+        adminSupabaseBucket.value = storageGet("nomuSupabaseBucket") || "nomu-cards";
+        adminSupabaseTable.value = storageGet("nomuSupabaseTable") || "nomu_card_logs";
         renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
         renderRewardList(adminRewardItems, rewardRules);
         const enabledCount = rewardRules.filter(rule => rule.enabled).length;
@@ -2981,6 +3236,8 @@
       }
 
       async function uploadCardImage(canvas) {
+        const supabaseUrl = await uploadCardToSupabase(canvas);
+        if (supabaseUrl) return supabaseUrl;
         const endpoint = window.NOMU_CARD_UPLOAD_ENDPOINT || storageGet("nomuCardUploadEndpoint") || "";
         if (!endpoint) return "";
         if (!/^https?:\/\//i.test(endpoint)) {
@@ -3593,8 +3850,18 @@
             return;
           }
           const uploadEndpoint = adminUploadEndpoint.value.trim();
+          const supabaseUrl = adminSupabaseUrl.value.trim();
+          const supabaseAnonKey = adminSupabaseAnonKey.value.trim();
+          const supabaseBucket = adminSupabaseBucket.value.trim() || "nomu-cards";
+          const supabaseTable = adminSupabaseTable.value.trim() || "nomu_card_logs";
           const messageSaved = storageSet("nomuFortuneMessages", nextMessages.join("\n"));
           const endpointSaved = storageSet("nomuCardUploadEndpoint", uploadEndpoint);
+          const supabaseSaved = [
+            storageSet("nomuSupabaseUrl", supabaseUrl),
+            storageSet("nomuSupabaseAnonKey", supabaseAnonKey),
+            storageSet("nomuSupabaseBucket", supabaseBucket),
+            storageSet("nomuSupabaseTable", supabaseTable)
+          ].every(Boolean);
           rewardRules = nextRewardRules;
           rewards = rewardRules.map(rule => rule.text);
           const rewardSaved = saveRewardRules();
@@ -3609,13 +3876,17 @@
           }
           const verified = savedRewardRules.length === nextRewardRules.length
             && savedRewardRules.every((rule, index) => rule.text === nextRewardRules[index].text && rule.enabled === nextRewardRules[index].enabled && Number(rule.every) === Number(nextRewardRules[index].every))
-            && storageGet("nomuCardUploadEndpoint") === uploadEndpoint;
+            && storageGet("nomuCardUploadEndpoint") === uploadEndpoint
+            && storageGet("nomuSupabaseUrl") === supabaseUrl
+            && storageGet("nomuSupabaseAnonKey") === supabaseAnonKey
+            && storageGet("nomuSupabaseBucket") === supabaseBucket
+            && storageGet("nomuSupabaseTable") === supabaseTable;
           loadSettings();
           hideOverlay(adminPanel);
           showOverlay(orderGate);
           resetDeck();
           createDeck();
-          showToast(messageSaved && rewardSaved && endpointSaved && verified
+          showToast(messageSaved && rewardSaved && endpointSaved && supabaseSaved && verified
             ? "บันทึกข้อความและโปรโมชั่นแล้ว"
             : "บันทึกชั่วคราวแล้ว แต่ browser อาจบล็อก localStorage");
         });
@@ -3627,6 +3898,10 @@
           storageRemove("nomuRewardCounter");
           storageRemove("nomuRewardRules");
           storageRemove("nomuCardUploadEndpoint");
+          storageRemove("nomuSupabaseUrl");
+          storageRemove("nomuSupabaseAnonKey");
+          storageRemove("nomuSupabaseBucket");
+          storageRemove("nomuSupabaseTable");
           storageRemove("nomuCardBackImage");
           storageRemove("nomuCardFrontImage");
           loadSettings();
@@ -3635,6 +3910,14 @@
           createDeck();
           showToast("คืนค่า default แล้ว");
         });
+        loadUsage.addEventListener("click", () => {
+          loadUsageRows().catch(error => {
+            console.error(error);
+            usageSummary.textContent = "ดึงข้อมูลไม่สำเร็จ";
+            showToast("ดึงข้อมูลไม่สำเร็จ");
+          });
+        });
+        exportUsage.addEventListener("click", exportUsageCsv);
         downloadCard.addEventListener("click", downloadSelectedCard);
         shareCard.addEventListener("click", showShareQr);
         printCard.addEventListener("click", printSelectedCard);
