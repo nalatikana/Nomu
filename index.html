@@ -1,46 +1,3995 @@
--- NOMU Daily Fortune Supabase setup
--- Run this in Supabase SQL Editor once per project.
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NOMU Daily Fortune</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=Raleway:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://unpkg.com">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000;
+      --panel: rgba(8, 22, 18, .76);
+      --panel-strong: rgba(4, 12, 10, .94);
+      --matcha: #9ed66f;
+      --matcha-soft: #d7f7aa;
+      --matcha-deep: #355f2d;
+      --violet: #a855f7;
+      --violet-soft: #d8b4fe;
+      --magenta: #f472b6;
+      --cyan: #67e8f9;
+      --gold: #ead18a;
+      --gold-deep: #9d7938;
+      --ink: #f6f7ee;
+      --muted: #c8d8bd;
+      --danger: #fb7185;
+      --card-w: clamp(104px, 13vw, 172px);
+      --card-h: calc(var(--card-w) * 1.4);
+      --selected-card-w: min(30vw, 430px);
+      --card-back-image: url("nomu-card-back.jpg");
+      --card-front-image: url("nomu-card-front-template.jpg");
+      font-family: "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+    }
 
-create table if not exists public.nomu_card_logs (
-  id bigint generated always as identity primary key,
-  created_at timestamptz not null default now(),
-  order_no text,
-  card_url text not null,
-  fortune_text text,
-  reward_text text,
-  user_agent text
-);
+    * { box-sizing: border-box; }
 
-alter table public.nomu_card_logs enable row level security;
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+    }
 
-drop policy if exists "nomu anon insert logs" on public.nomu_card_logs;
-create policy "nomu anon insert logs"
-on public.nomu_card_logs
-for insert
-to anon
-with check (true);
+    body {
+      min-height: 100svh;
+      background:
+        radial-gradient(circle at 18% 22%, rgba(255, 255, 255, .86) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 14%, rgba(234, 209, 138, .78) 0 1px, transparent 2px),
+        radial-gradient(circle at 88% 62%, rgba(158, 214, 111, .62) 0 1px, transparent 2px),
+        radial-gradient(circle at 36% 76%, rgba(255, 255, 255, .58) 0 1px, transparent 2px),
+        radial-gradient(circle at 51% 41%, rgba(226, 232, 240, .15), transparent 24%),
+        radial-gradient(circle at 20% 20%, rgba(61, 117, 64, .28), transparent 34%),
+        radial-gradient(circle at 86% 10%, rgba(234, 209, 138, .12), transparent 20%),
+        radial-gradient(ellipse at 50% 100%, rgba(6, 38, 29, .82), transparent 52%),
+        linear-gradient(180deg, #020604 0%, #030a08 46%, #000 100%);
+      background-size:
+        260px 260px,
+        340px 340px,
+        420px 420px,
+        300px 300px,
+        auto,
+        auto,
+        auto,
+        auto,
+        auto;
+    }
 
-drop policy if exists "nomu anon read logs" on public.nomu_card_logs;
-create policy "nomu anon read logs"
-on public.nomu_card_logs
-for select
-to anon
-using (true);
+    button,
+    label.file-button {
+      border: 1px solid rgba(248, 212, 119, .42);
+      background: linear-gradient(180deg, rgba(234, 209, 138, .18), rgba(82, 130, 68, .18));
+      color: var(--ink);
+      min-height: 42px;
+      border-radius: 8px;
+      padding: 0 14px;
+      font: 600 13px/1 "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      letter-spacing: 0;
+      cursor: pointer;
+      box-shadow: 0 0 24px rgba(158, 214, 111, .14), inset 0 0 18px rgba(234, 209, 138, .08);
+      transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
 
-insert into storage.buckets (id, name, public)
-values ('nomu-cards', 'nomu-cards', true)
-on conflict (id) do update set public = true;
+    button:hover,
+    label.file-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(248, 212, 119, .78);
+      box-shadow: 0 0 32px rgba(158, 214, 111, .25), inset 0 0 22px rgba(234, 209, 138, .12);
+    }
 
-drop policy if exists "nomu anon upload cards" on storage.objects;
-create policy "nomu anon upload cards"
-on storage.objects
-for insert
-to anon
-with check (bucket_id = 'nomu-cards');
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .48;
+      transform: none;
+    }
 
-drop policy if exists "nomu public read cards" on storage.objects;
-create policy "nomu public read cards"
-on storage.objects
-for select
-to anon
-using (bucket_id = 'nomu-cards');
+    input[type="file"] {
+      position: absolute;
+      inline-size: 1px;
+      block-size: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    textarea,
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      border: 1px solid rgba(235, 238, 244, .24);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .08);
+      color: var(--ink);
+      font: 400 14px/1.45 "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    .app {
+      position: relative;
+      width: 100vw;
+      height: 100svh;
+      isolation: isolate;
+    }
+
+    .backdrop {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      z-index: 0;
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, .24), rgba(0, 0, 0, .48)),
+        url("nomu-moon-background.jpg") center bottom / cover no-repeat;
+    }
+
+    .backdrop::before {
+      content: "";
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      background:
+        radial-gradient(circle at 50% 46%, rgba(215, 247, 170, .08), transparent 34%),
+        linear-gradient(180deg, rgba(0, 0, 0, .06), rgba(0, 0, 0, .38));
+      pointer-events: none;
+    }
+
+    .moon {
+      display: none;
+    }
+
+    .moon::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        linear-gradient(180deg, transparent 0 45%, rgba(0, 0, 0, .88) 76% 100%),
+        radial-gradient(ellipse at 50% 95%, rgba(0, 0, 0, .98), transparent 42%);
+    }
+
+    .moon::after {
+      content: "";
+      position: absolute;
+      inset: -16%;
+      border-radius: inherit;
+      background: radial-gradient(circle at 52% 58%, transparent 0 55%, rgba(255, 255, 255, .34) 57%, rgba(168, 85, 247, .14) 61%, transparent 67%);
+      filter: blur(12px);
+      opacity: .62;
+    }
+
+    .ring {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: min(68vw, 760px);
+      aspect-ratio: 1;
+      transform: translate(-50%, -50%) rotate(0deg);
+      border: 1px solid rgba(248, 212, 119, .13);
+      border-radius: 50%;
+      box-shadow: 0 0 54px rgba(168, 85, 247, .14), inset 0 0 42px rgba(103, 232, 249, .08);
+      animation: orbitSpin 42s linear infinite;
+    }
+
+    .ring::before,
+    .ring::after {
+      content: "";
+      position: absolute;
+      inset: 7%;
+      border: 1px dashed rgba(216, 180, 254, .16);
+      border-radius: inherit;
+    }
+
+    .ring::after {
+      inset: 17%;
+      border-color: rgba(248, 212, 119, .2);
+      animation: turn 24s linear infinite reverse;
+    }
+
+    .stars,
+    .particles,
+    .trails {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .star,
+    .particle,
+    .trail {
+      position: absolute;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .star {
+      width: 2px;
+      height: 2px;
+      background: rgba(248, 242, 255, .78);
+      box-shadow: 0 0 10px rgba(216, 180, 254, .82);
+      animation: twinkle 2.8s ease-in-out infinite;
+    }
+
+    .particle {
+      width: 6px;
+      height: 6px;
+      background: var(--matcha-soft);
+      box-shadow: 0 0 16px var(--matcha-soft), 0 0 34px rgba(234, 209, 138, .38);
+      opacity: .62;
+      animation: floatDust var(--dur, 10s) linear infinite;
+    }
+
+    .trail {
+      width: 12px;
+      height: 12px;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(234, 209, 138, .96), rgba(158, 214, 111, .54) 45%, transparent 72%);
+      filter: blur(.2px);
+    }
+
+    .topbar {
+      position: absolute;
+      z-index: 14;
+      top: max(12px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1120px, calc(100vw - 24px));
+      display: grid;
+      grid-template-columns: minmax(210px, 1fr) auto minmax(210px, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid rgba(158, 214, 111, .2);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(0, 0, 0, .72), rgba(8, 22, 18, .58));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 12px 44px rgba(0, 0, 0, .36), inset 0 0 28px rgba(158, 214, 111, .035);
+    }
+
+    body.photo-confirming .topbar {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .sigil {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background:
+        radial-gradient(ellipse at 50% 30%, rgba(245, 255, 223, .95) 0 12%, transparent 13%),
+        radial-gradient(ellipse at 50% 30%, rgba(215, 247, 170, .95) 0 34%, rgba(126, 173, 83, .95) 35% 58%, rgba(45, 78, 43, .95) 59%),
+        linear-gradient(180deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .02));
+      border: 1px solid rgba(215, 247, 170, .7);
+      box-shadow: 0 0 24px rgba(158, 214, 111, .48), inset 0 0 12px rgba(234, 209, 138, .16);
+      flex: 0 0 auto;
+    }
+
+    .sigil::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      right: 7px;
+      bottom: 7px;
+      height: 18px;
+      border-radius: 4px 4px 9px 9px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .5), transparent 32%),
+        linear-gradient(90deg, rgba(215, 247, 170, .92), rgba(92, 137, 62, .95));
+      border: 1px solid rgba(245, 255, 223, .65);
+      box-shadow: inset 0 -7px 10px rgba(25, 61, 33, .34);
+    }
+
+    .sigil::after {
+      content: "";
+      position: absolute;
+      right: 2px;
+      bottom: 12px;
+      width: 9px;
+      height: 12px;
+      border: 2px solid rgba(215, 247, 170, .62);
+      border-left: 0;
+      border-radius: 0 8px 8px 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(18px, 2.5vw, 32px);
+      line-height: 1;
+      letter-spacing: 0;
+      color: #f8f5ef;
+      text-shadow: 0 0 18px rgba(215, 247, 170, .32), 0 0 36px rgba(234, 209, 138, .22);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+      text-align: center;
+      min-width: 170px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .order-badge {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 86px;
+      transform: translateX(-50%);
+      padding: 6px 10px;
+      border: 1px solid rgba(235, 238, 244, .22);
+      border-radius: 8px;
+      color: #d8d9de;
+      background: rgba(0, 0, 0, .48);
+      backdrop-filter: blur(12px);
+      font-size: 12px;
+      opacity: .88;
+    }
+
+    .stage {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      perspective: 1200px;
+      transform-style: preserve-3d;
+      overflow: hidden;
+      touch-action: none;
+      cursor: none;
+    }
+
+    .orb-cursor {
+      position: absolute;
+      z-index: 8;
+      width: 34px;
+      height: 34px;
+      margin: -17px 0 0 -17px;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(255, 255, 255, .92) 0 10%, rgba(234, 209, 138, .78) 15% 28%, rgba(158, 214, 111, .5) 45%, transparent 72%);
+      box-shadow: 0 0 20px rgba(234, 209, 138, .62), 0 0 42px rgba(158, 214, 111, .5);
+      opacity: .92;
+      transform: scale(.78);
+      transition: opacity .2s ease, transform .16s ease;
+    }
+
+    .orb-cursor.pinching {
+      transform: scale(1.38);
+      background: radial-gradient(circle, #fff 0 9%, rgba(215, 247, 170, .94) 14% 26%, rgba(234, 209, 138, .74) 38%, transparent 72%);
+    }
+
+    .tarot-card {
+      position: absolute;
+      width: var(--card-w);
+      height: var(--card-h);
+      left: 50%;
+      top: 50%;
+      transform-style: preserve-3d;
+      border-radius: 8px;
+      will-change: transform, filter;
+      filter: drop-shadow(0 26px 34px rgba(0, 0, 0, .52));
+      touch-action: none;
+    }
+
+    .tarot-card.hovered .card-shell {
+      box-shadow: 0 0 22px rgba(248, 212, 119, .68), 0 0 54px rgba(168, 85, 247, .44);
+    }
+
+    .tarot-card.dragging {
+      z-index: 5;
+      filter: drop-shadow(0 36px 42px rgba(0, 0, 0, .68));
+    }
+
+    .tarot-card.selected-card {
+      width: var(--selected-card-w);
+      height: calc(var(--selected-card-w) * 1.4);
+    }
+
+    .card-shell {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      border-radius: 8px;
+      border: 1px solid rgba(230, 236, 244, .72);
+      background: #d7d9dd;
+      transition: box-shadow .18s ease;
+      box-shadow: 0 0 12px rgba(216, 180, 254, .18);
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 8px;
+      backface-visibility: hidden;
+      display: grid;
+      place-items: center;
+    }
+
+    .card-back {
+      background: var(--card-back-image) center / cover no-repeat;
+    }
+
+    .card-back::before {
+      content: "";
+      display: none;
+    }
+
+    .card-back::after {
+      content: "";
+      display: none;
+    }
+
+    .card-front {
+      transform: rotateY(180deg);
+      background: var(--card-front-image) center / cover no-repeat;
+    }
+
+    .card-back,
+    .card-front,
+    .card-front img {
+      image-rendering: auto;
+    }
+
+    .card-front img {
+      position: absolute;
+      left: 6.4%;
+      top: 14.6%;
+      width: 87.2%;
+      height: 45.2%;
+      object-fit: cover;
+      object-position: center 42%;
+      display: none;
+      border-radius: 4.6%;
+      z-index: 1;
+    }
+
+    .card-front.has-image img {
+      display: block;
+    }
+
+    .fortune-mini {
+      position: absolute;
+      left: 11%;
+      right: 11%;
+      top: 69.6%;
+      z-index: 2;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      min-height: 11.6%;
+      color: rgba(72, 72, 78, .9);
+      font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      font-size: clamp(11px, calc(var(--card-w) * .09), 17px);
+      line-height: 1.08;
+      font-weight: 600;
+      text-shadow: none;
+      padding: 0 4px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .card-front.has-image {
+      background-image: var(--card-front-image);
+    }
+
+    .card-front.has-image .fortune-mini {
+      display: grid;
+      left: 11%;
+      right: 11%;
+      top: 69.6%;
+      min-height: 11.6%;
+      padding: 0 4px;
+      border: 0;
+      background: transparent;
+      color: rgba(72, 72, 78, .9);
+      font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif;
+      font-size: clamp(11px, calc(var(--card-w) * .09), 17px);
+      font-weight: 600;
+      line-height: 1.08;
+      text-shadow: none;
+    }
+
+    .glow-burst {
+      position: absolute;
+      inset: -24%;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(248, 212, 119, .74), rgba(168, 85, 247, .42) 32%, transparent 68%);
+      filter: blur(12px);
+      transform: translateZ(-1px);
+    }
+
+    .choice-modal {
+      position: absolute;
+      z-index: 11;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      background: radial-gradient(circle, rgba(0, 0, 0, .08), rgba(0, 0, 0, .62));
+      backdrop-filter: blur(8px);
+      transition: opacity .24s ease, visibility .24s ease;
+    }
+
+    .choice-modal.visible {
+      pointer-events: auto;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .choice-box {
+      width: min(430px, calc(100vw - 32px));
+      border: 1px solid rgba(235, 238, 244, .38);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(11, 11, 13, .94), rgba(0, 0, 0, .88));
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .56), 0 0 36px rgba(248, 212, 119, .12);
+      padding: 18px;
+      text-align: center;
+    }
+
+    .choice-box h2 {
+      margin: 0 0 8px;
+      color: #f7f7f4;
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 600;
+      line-height: 1.18;
+    }
+
+    .choice-box p {
+      margin: 0 0 14px;
+      color: #c7c9d0;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .choice-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .choice-actions button {
+      width: 100%;
+    }
+
+    .overlay {
+      position: absolute;
+      z-index: 12;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(215, 247, 170, .08), transparent 30%),
+        radial-gradient(circle at 50% 44%, rgba(31, 50, 40, .5), rgba(0, 0, 0, .92) 64%);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .24s ease, visibility .24s ease;
+    }
+
+    .overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .overlay.active-modal {
+      z-index: 18;
+    }
+
+    #adminLogin,
+    #adminPanel,
+    #downloadQrModal {
+      z-index: 24;
+    }
+
+    #photoConfirm {
+      position: fixed;
+      z-index: 22;
+      place-items: start center;
+      padding-top: max(18px, env(safe-area-inset-top));
+      padding-bottom: max(18px, env(safe-area-inset-bottom));
+    }
+
+    .panel {
+      width: min(760px, calc(100vw - 28px));
+      max-height: calc(100svh - 34px);
+      overflow: auto;
+      border: 1px solid rgba(215, 247, 170, .24);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(8, 18, 14, .96), rgba(0, 0, 0, .92)),
+        radial-gradient(circle at 15% 0%, rgba(158, 214, 111, .12), transparent 34%);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, .62), 0 0 44px rgba(158, 214, 111, .12);
+      padding: clamp(18px, 3vw, 28px);
+    }
+
+    .panel h2 {
+      margin: 0 0 8px;
+      color: #f7f7f4;
+      font-size: clamp(28px, 5vw, 52px);
+      line-height: 1.02;
+      font-weight: 700;
+      text-shadow: 0 0 22px rgba(215, 247, 170, .16);
+    }
+
+    .panel h3 {
+      margin: 18px 0 8px;
+      color: var(--gold);
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .panel p {
+      margin: 0 0 12px;
+      color: #cbd8c5;
+      line-height: 1.55;
+    }
+
+    #orderGate .panel {
+      width: min(760px, calc(100vw - 28px));
+      background:
+        radial-gradient(circle at 80% 18%, rgba(234, 209, 138, .1), transparent 24%),
+        radial-gradient(circle at 8% 0%, rgba(158, 214, 111, .12), transparent 32%),
+        linear-gradient(180deg, rgba(7, 18, 14, .96), rgba(0, 0, 0, .92));
+    }
+
+    #orderGate .panel h2::after {
+      content: "MATCHA FOR THE MODERN MIND.";
+      display: block;
+      margin-top: 10px;
+      color: var(--matcha-soft);
+      font-family: "Raleway", "Kanit", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.25;
+      opacity: .78;
+    }
+
+    .admin-entry {
+      position: absolute;
+      top: max(18px, env(safe-area-inset-top));
+      right: max(18px, env(safe-area-inset-right));
+      z-index: 2;
+      min-height: 36px;
+      padding: 0 12px;
+      border-color: rgba(215, 247, 170, .28);
+      background: rgba(5, 16, 12, .72);
+      color: rgba(246, 247, 238, .82);
+      box-shadow: 0 0 18px rgba(158, 214, 111, .12);
+      font-size: 12px;
+    }
+
+    .admin-login-panel {
+      width: min(560px, calc(100vw - 28px));
+    }
+
+    .qr-panel {
+      width: min(780px, calc(100vw - 28px));
+    }
+
+    .qr-layout {
+      display: grid;
+      grid-template-columns: minmax(220px, .9fr) minmax(220px, 1fr);
+      gap: 16px;
+      align-items: stretch;
+      margin-top: 14px;
+    }
+
+    #qrPreview {
+      width: 100%;
+      max-height: min(58svh, 520px);
+      object-fit: contain;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+    }
+
+    .qr-box {
+      display: grid;
+      place-items: center;
+      gap: 12px;
+      min-height: 260px;
+      padding: 18px;
+      border: 1px dashed rgba(234, 209, 138, .42);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .055);
+      text-align: center;
+    }
+
+    #downloadQrCanvas {
+      width: min(220px, 44vw);
+      height: min(220px, 44vw);
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    #downloadQrImage {
+      width: min(220px, 44vw);
+      height: min(220px, 44vw);
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      display: none;
+    }
+
+    #qrStatus {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .how-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .how-step {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 12px;
+      align-items: start;
+      border-top: 1px solid rgba(235, 238, 244, .12);
+      padding-top: 10px;
+    }
+
+    .step-label {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+    }
+
+    .admin-fields {
+      display: grid;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .admin-fields label {
+      display: grid;
+      gap: 6px;
+      color: #d8d9de;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .admin-field {
+      display: grid;
+      gap: 8px;
+      color: #d8d9de;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .admin-wide-field {
+      grid-column: 1 / -1;
+    }
+
+    .admin-field > span {
+      color: var(--matcha-soft);
+    }
+
+    .admin-subgrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .admin-subgrid input {
+      width: 100%;
+    }
+
+    .admin-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .usage-summary {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .usage-table-wrap {
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid rgba(215, 247, 170, .16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+      font-size: 12px;
+    }
+
+    .usage-table th,
+    .usage-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(235, 238, 244, .1);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .usage-table th {
+      color: var(--matcha-soft);
+      font-weight: 800;
+      background: rgba(3, 10, 8, .9);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .usage-table a {
+      color: var(--gold);
+    }
+
+    .admin-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .admin-toggle {
+      display: flex !important;
+      grid-template-columns: none !important;
+      align-items: center;
+      gap: 10px !important;
+      min-height: 42px;
+      padding: 10px 12px;
+      border: 1px solid rgba(235, 238, 244, .18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .admin-toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold);
+    }
+
+    .admin-note {
+      margin: -4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .admin-source {
+      display: none;
+    }
+
+    .admin-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .admin-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .admin-item.reward-item {
+      grid-template-columns: minmax(220px, 1fr) auto;
+      align-items: stretch;
+      gap: 10px;
+      padding: 10px;
+      border: 1px solid rgba(215, 247, 170, .18);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(215, 247, 170, .055), rgba(255, 255, 255, .025)),
+        linear-gradient(180deg, rgba(0, 0, 0, .08), rgba(0, 0, 0, .18));
+    }
+
+    .admin-item.reward-item > input[type="text"] {
+      height: 100%;
+      min-height: 54px;
+      background: rgba(255, 255, 255, .05);
+      border-color: rgba(215, 247, 170, .18);
+    }
+
+    .reward-controls {
+      display: grid;
+      grid-template-columns: auto 82px 54px;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .reward-enabled {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: 13px;
+      white-space: nowrap;
+      min-height: 54px;
+      padding: 0 10px;
+      border: 1px solid rgba(215, 247, 170, .16);
+      border-radius: 8px;
+      background: rgba(158, 214, 111, .055);
+    }
+
+    .reward-enabled input {
+      width: 18px;
+      height: 18px;
+      min-height: 18px;
+      accent-color: var(--gold);
+    }
+
+    .reward-every {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .reward-every input {
+      min-height: 42px;
+      padding: 8px 10px;
+      text-align: center;
+      width: 82px;
+    }
+
+    .admin-item button {
+      min-width: 42px;
+      padding: 0 10px;
+    }
+
+    .reward-item button {
+      width: 54px;
+      min-height: 42px;
+      align-self: end;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .confirm-photo {
+      display: grid;
+      gap: 14px;
+      max-height: calc(100dvh - var(--topbar-offset, 158px) - env(safe-area-inset-bottom, 0px) - 28px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .confirm-photo canvas {
+      width: 100%;
+      aspect-ratio: 87.2 / 45.2;
+      max-height: min(44dvh, 470px);
+      border-radius: 8px;
+      border: 1px solid rgba(235, 238, 244, .28);
+      background: rgba(0, 0, 0, .48);
+      touch-action: none;
+      object-fit: contain;
+    }
+
+    .crop-note {
+      margin: -2px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .photo-editor-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .photo-editor-controls button {
+      min-height: 38px;
+      padding: 0 8px;
+    }
+
+    #skipIntroPhoto {
+      display: none;
+    }
+
+    .photo-countdown {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      font-size: clamp(24px, 5vw, 46px);
+      font-weight: 800;
+      line-height: 1;
+      text-align: center;
+      text-shadow: 0 0 24px rgba(248, 212, 119, .32);
+    }
+
+    .selfie-preview {
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid rgba(235, 238, 244, .28);
+      background: rgba(255, 255, 255, .08);
+      aspect-ratio: 4 / 3;
+    }
+
+    .selfie-preview video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .selfie-preview video.camera-rotated {
+      object-fit: contain;
+      transform: rotate(90deg) scaleY(-1);
+      background: #000;
+    }
+
+    .selfie-preview .photo-countdown {
+      position: absolute;
+      inset: 0;
+      min-height: 0;
+      background: radial-gradient(circle, rgba(0, 0, 0, .1), rgba(0, 0, 0, .42));
+      font-size: clamp(46px, 12vw, 108px);
+    }
+
+    .reading {
+      position: absolute;
+      z-index: 7;
+      left: 50%;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      transform: translateX(-50%) translateY(130%);
+      width: min(640px, calc(100vw - 24px));
+      border: 1px solid rgba(215, 247, 170, .32);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(3, 10, 8, .92), rgba(19, 38, 24, .82));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 44px rgba(158, 214, 111, .24), inset 0 0 30px rgba(234, 209, 138, .06);
+      padding: 14px 16px 16px;
+    }
+
+    .ready-guide {
+      position: absolute;
+      z-index: 9;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: min(520px, calc(100vw - 44px));
+      padding: 18px;
+      border: 1px solid rgba(215, 247, 170, .34);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(2, 10, 7, .9), rgba(18, 42, 24, .82));
+      box-shadow: 0 0 38px rgba(158, 214, 111, .22);
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .ready-guide[hidden] {
+      display: none;
+    }
+
+    .ready-guide strong {
+      display: block;
+      color: #fffdf4;
+      font-size: clamp(28px, 6vw, 56px);
+      line-height: 1.05;
+      text-shadow: 0 0 22px rgba(215, 247, 170, .24);
+    }
+
+    .ready-guide span {
+      display: block;
+      margin-top: 8px;
+      color: var(--matcha-soft);
+      font-size: clamp(14px, 2.6vw, 20px);
+      line-height: 1.35;
+    }
+
+    .reading.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .reading.card-only {
+      z-index: 30;
+      width: auto;
+      min-width: min(380px, calc(100vw - 24px));
+      padding: 8px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      pointer-events: none;
+    }
+
+    .reading.card-only .fortune,
+    .reading.card-only .ai-reading {
+      display: none;
+    }
+
+    .reading.card-only .reading-actions {
+      margin-top: 0;
+      justify-content: center;
+    }
+
+    .reward-badge {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 38px;
+      margin: 0 0 8px;
+      padding: 8px 12px;
+      border: 1px solid rgba(234, 209, 138, .46);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(234, 209, 138, .18), rgba(158, 214, 111, .13));
+      color: #fff8df;
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: 0 0 24px rgba(158, 214, 111, .2), inset 0 0 16px rgba(234, 209, 138, .08);
+    }
+
+    .reward-badge.visible {
+      display: flex;
+    }
+
+    .reading-title {
+      display: none;
+    }
+
+    .fortune {
+      margin: 0;
+      font-size: clamp(19px, 2.7vw, 34px);
+      line-height: 1.33;
+      font-weight: 800;
+      color: #fffdf4;
+      text-shadow: 0 0 18px rgba(248, 212, 119, .32);
+    }
+
+    .ai-reading {
+      margin: 8px 0 0;
+      color: var(--violet-soft);
+      font-size: clamp(13px, 1.45vw, 16px);
+      line-height: 1.55;
+    }
+
+    .reading-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .reading.card-only .reading-actions {
+      position: fixed;
+      z-index: 31;
+      pointer-events: auto;
+      left: 50%;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: min(520px, calc(100vw - 24px));
+      display: flex;
+      justify-content: center;
+      padding: 10px;
+      margin: 0;
+      border: 1px solid rgba(215, 247, 170, .32);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(3, 10, 8, .92), rgba(19, 38, 24, .82));
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 44px rgba(158, 214, 111, .24), inset 0 0 30px rgba(234, 209, 138, .06);
+    }
+
+    .video-panel {
+      position: absolute;
+      z-index: 5;
+      right: 14px;
+      bottom: 14px;
+      width: clamp(132px, 18vw, 230px);
+      --camera-preview-aspect: 4 / 3;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(103, 232, 249, .34);
+      background: rgba(4, 2, 9, .78);
+      box-shadow: 0 0 28px rgba(103, 232, 249, .12);
+    }
+
+    .video-panel video,
+    .video-panel canvas {
+      width: 100%;
+      aspect-ratio: var(--camera-preview-aspect);
+      display: block;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .video-panel canvas {
+      position: absolute;
+      inset: 0;
+    }
+
+    .video-panel video.camera-rotated {
+      object-fit: cover;
+      transform: rotate(90deg) scaleY(-1);
+      transform-origin: center;
+    }
+
+    .photo-preview {
+      width: 100%;
+      aspect-ratio: 87.2 / 45.2;
+      display: block;
+      object-fit: contain;
+      border-top: 1px solid rgba(103, 232, 249, .24);
+      background: rgba(0, 0, 0, .48);
+    }
+
+    .photo-preview[hidden] {
+      display: none;
+    }
+
+    .camera-status {
+      padding: 7px 8px 0;
+      color: var(--violet-soft);
+      font-size: 11px;
+      line-height: 1.35;
+      text-align: center;
+    }
+
+    .capture-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 6px;
+    }
+
+    .capture-row button,
+    .capture-row label.file-button {
+      min-height: 34px;
+      padding: 0 8px;
+      font-size: 11px;
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 9;
+      top: 92px;
+      left: 50%;
+      transform: translateX(-50%);
+      max-width: min(560px, calc(100vw - 24px));
+      padding: 10px 13px;
+      border: 1px solid rgba(216, 180, 254, .24);
+      border-radius: 8px;
+      background: rgba(5, 2, 10, .82);
+      color: var(--violet-soft);
+      font-size: 13px;
+      line-height: 1.35;
+      opacity: 0;
+      pointer-events: none;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 0 28px rgba(168, 85, 247, .28);
+    }
+
+    .loading {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 45%, rgba(168, 85, 247, .24), rgba(5, 2, 10, .96) 58%);
+      transition: opacity .4s ease, visibility .4s ease;
+    }
+
+    .loading.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .scan-download-page {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: max(18px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+      background:
+        radial-gradient(circle at 50% 12%, rgba(215, 247, 170, .18), transparent 30%),
+        linear-gradient(180deg, #06110c, #000);
+      color: var(--text);
+    }
+
+    .scan-download-card {
+      width: min(720px, 100%);
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border: 1px solid rgba(215, 247, 170, .24);
+      border-radius: 8px;
+      background: rgba(2, 10, 7, .88);
+      box-shadow: 0 28px 80px rgba(0, 0, 0, .56);
+      text-align: center;
+    }
+
+    .scan-download-card h1 {
+      margin: 0;
+      font-size: clamp(28px, 6vw, 52px);
+      line-height: 1.05;
+    }
+
+    .scan-download-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .scan-download-card img {
+      width: 100%;
+      max-height: 68dvh;
+      object-fit: contain;
+      border: 1px solid rgba(215, 247, 170, .2);
+      border-radius: 8px;
+      background: #101410;
+    }
+
+    .scan-download-card a {
+      display: inline-grid;
+      place-items: center;
+      min-height: 46px;
+      padding: 0 18px;
+      border: 1px solid rgba(234, 209, 138, .62);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(234, 209, 138, .22), rgba(28, 48, 22, .82));
+      color: #fffdf4;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .loader {
+      width: min(420px, calc(100vw - 34px));
+      text-align: center;
+      padding: 22px;
+      border: 1px solid rgba(248, 212, 119, .32);
+      border-radius: 8px;
+      background: rgba(5, 2, 10, .76);
+      box-shadow: 0 0 48px rgba(168, 85, 247, .32);
+    }
+
+    .loader-mark {
+      width: 76px;
+      height: 76px;
+      margin: 0 auto 16px;
+      border: 1px solid rgba(248, 212, 119, .7);
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(248, 212, 119, .24), inset 0 0 24px rgba(168, 85, 247, .44);
+      animation: turn 3s linear infinite;
+    }
+
+    .loader h2 {
+      margin: 0 0 8px;
+      font-size: clamp(22px, 4vw, 36px);
+      color: #fff7d6;
+      letter-spacing: 0;
+    }
+
+    .loader p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    @keyframes orbitSpin {
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes turn {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes moonPulse {
+      0%, 100% { opacity: .58; filter: blur(.25px) brightness(.96) saturate(.82); }
+      50% { opacity: .82; filter: blur(.25px) brightness(1.14) saturate(.9); }
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: .25; transform: scale(.7); }
+      50% { opacity: 1; transform: scale(1.35); }
+    }
+
+    @keyframes floatDust {
+      from { transform: translate3d(0, 110vh, 0) scale(.7); opacity: 0; }
+      12% { opacity: .65; }
+      88% { opacity: .65; }
+      to { transform: translate3d(var(--drift, 40px), -12vh, 0) scale(1.15); opacity: 0; }
+    }
+
+    @media (max-width: 820px) {
+      :root {
+        --card-w: clamp(82px, 22vw, 118px);
+        --selected-card-w: min(68vw, 360px);
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+        justify-items: stretch;
+        align-items: start;
+      }
+
+      .brand { justify-content: center; }
+
+      .status { order: 3; min-width: 0; }
+
+      .order-badge {
+        top: 162px;
+        max-width: calc(100vw - 24px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .actions {
+        justify-content: center;
+      }
+
+      .video-panel {
+        width: 130px;
+        right: 10px;
+        bottom: 10px;
+      }
+
+      .capture-row {
+        grid-template-columns: 1fr;
+      }
+
+      .choice-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-grid,
+      .how-step {
+        grid-template-columns: 1fr;
+      }
+
+      .qr-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-item.reward-item {
+        grid-template-columns: 1fr;
+      }
+
+      .reward-controls {
+        grid-template-columns: auto 82px 54px;
+        justify-content: end;
+      }
+
+      .reading {
+        bottom: 152px;
+        padding: 12px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .reward-controls {
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+      }
+
+      .reward-item button {
+        width: 100%;
+      }
+    }
+
+    @media (min-width: 821px) and (max-width: 1366px) {
+      :root {
+        --card-w: clamp(112px, 14vw, 160px);
+        --selected-card-w: min(40vw, 440px);
+      }
+
+      .topbar {
+        width: min(960px, calc(100vw - 24px));
+        grid-template-columns: minmax(250px, 1fr) minmax(120px, .7fr) minmax(250px, 1fr);
+      }
+
+      .reading {
+        width: min(560px, calc(100vw - 36px));
+        max-height: 27svh;
+        overflow: auto;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        padding: 12px 14px 14px;
+      }
+
+      .reading.card-only {
+        width: auto;
+        max-height: none;
+        overflow: visible;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        padding: 8px;
+      }
+
+      .fortune {
+        font-size: clamp(22px, 3vw, 30px);
+      }
+
+      .reading-actions button {
+        min-height: 38px;
+        padding: 0 12px;
+      }
+    }
+
+    @media (min-width: 821px) and (max-width: 1366px) and (orientation: portrait) {
+      .card-front img {
+        object-position: center 38%;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff !important;
+        overflow: visible;
+      }
+
+      .topbar,
+      .backdrop,
+      .video-panel,
+      .orb-cursor,
+        .reading,
+      .toast,
+      .loading,
+      .overlay,
+      .choice-modal,
+      .tarot-card:not(.selected-card) {
+        display: none !important;
+      }
+
+      .app,
+      .stage {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        perspective: none !important;
+      }
+
+      .tarot-card.selected-card {
+        position: static !important;
+        width: min(92vw, 480px) !important;
+        height: calc(min(92vw, 480px) * 1.4) !important;
+        margin: 0 auto !important;
+        transform: none !important;
+        filter: none !important;
+      }
+
+      .tarot-card.selected-card .fortune-mini,
+      .tarot-card.selected-card .card-front.has-image .fortune-mini {
+        font-family: "Raleway", "Kanit", "Segoe UI", "Noto Sans Thai", system-ui, sans-serif !important;
+        font-size: clamp(21px, 5.2vw, 32px) !important;
+        line-height: 1.05 !important;
+        font-weight: 600 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="AI tarot reading app">
+    <section class="backdrop" aria-hidden="true">
+      <div class="moon"></div>
+      <div class="ring"></div>
+      <div class="stars" id="stars"></div>
+      <div class="particles" id="particles"></div>
+      <div class="trails" id="trails"></div>
+    </section>
+
+    <header class="topbar">
+      <div class="brand">
+        <div class="sigil" aria-hidden="true"></div>
+        <h1>NOMU Daily Fortune</h1>
+      </div>
+      <div class="status" id="status">เปิดกล้อง แล้วใช้นิ้วชี้แตะการ์ด บีบนิ้วโป้งกับนิ้วชี้เพื่อหยิบ</div>
+      <div class="actions">
+        <button id="howToPlayBtn" type="button" title="วิธีเล่น">HOW TO PLAY</button>
+        <button id="startCamera" type="button" title="เปิดกล้องเพื่อติดตามมือ">เปิดกล้อง</button>
+        <button id="shuffleCards" type="button" title="สับไพ่ใหม่">สับไพ่</button>
+        <label class="file-button" for="deckUpload" title="เลือกรูปการ์ดที่ออกแบบเอง">เลือกรูปการ์ด</label>
+        <input id="deckUpload" type="file" accept="image/*" multiple>
+      </div>
+    </header>
+
+    <div class="order-badge" id="orderBadge">Order: -</div>
+
+    <section class="stage" id="stage" aria-label="floating tarot cards"></section>
+
+    <aside class="video-panel" aria-label="camera controls">
+      <video id="inputVideo" playsinline muted></video>
+      <canvas id="handCanvas"></canvas>
+      <img class="photo-preview" id="photoPreview" alt="latest card photo preview" hidden>
+      <div class="camera-status" id="cameraStatus">ถ่ายรูปก่อน แล้วแบมือ 5 นิ้วเพื่อเริ่มเล่น</div>
+      <div class="capture-row">
+        <button id="captureCard" type="button" title="ถ่ายภาพจากกล้องเพื่อใส่บนการ์ด">ถ่ายการ์ด</button>
+        <label class="file-button" for="singleUpload" title="ใส่รูปบนการ์ดถัดไป">ใส่รูป</label>
+        <input id="singleUpload" type="file" accept="image/*">
+      </div>
+    </aside>
+
+    <div class="orb-cursor" id="orbCursor" aria-hidden="true"></div>
+    <div class="ready-guide" id="readyGuide" hidden>
+      <strong id="readyGuideTitle">แบมือ 5 นิ้ว</strong>
+      <span id="readyGuideText">ให้เห็นมือครบในกล้อง เพื่อเริ่มเลือกการ์ด</span>
+    </div>
+
+    <section class="reading" id="reading" aria-live="polite">
+      <p class="reading-title">NOMU Daily Fortune</p>
+      <p class="fortune" id="fortuneText"></p>
+      <p class="ai-reading" id="aiText"></p>
+      <div class="reward-badge" id="rewardBadge" hidden></div>
+      <div class="reading-actions">
+        <button id="downloadCard" type="button">Download</button>
+        <button id="shareCard" type="button">Share</button>
+        <button id="printCard" type="button">Print</button>
+        <button id="homeCard" type="button">กลับหน้าแรก</button>
+      </div>
+    </section>
+
+    <section class="choice-modal" id="choiceModal" aria-live="polite" aria-label="photo attachment choice">
+      <div class="choice-box">
+        <h2>อยากแนบภาพไหม?</h2>
+        <p>แนบภาพจะถ่ายจากกล้องแล้ววางบนหน้าไพ่ใบนี้ ถ้าไม่แนบจะใช้การ์ด NOMU Daily Fortune</p>
+        <div class="choice-actions">
+          <button id="attachPhoto" type="button">แนบภาพ</button>
+          <button id="skipPhoto" type="button">ไม่แนบ</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay visible" id="orderGate" aria-label="order entry">
+      <button class="admin-entry" id="adminEntryBtn" type="button">Admin</button>
+      <div class="panel">
+        <h2>NOMU Daily Fortune</h2>
+        <p>กรอกเลขใบเสร็จหรือรหัส order เพื่อเข้าสู่ระบบ แล้วเตรียมเรียกพลังมัทฉะของคุณ</p>
+        <div class="panel-grid">
+          <input id="orderInput" type="text" inputmode="numeric" autocomplete="off" placeholder="Order number">
+          <button id="enterOrder" type="button">เข้าสู่ระบบ</button>
+        </div>
+        <div class="panel-actions">
+          <button id="openHowFromGate" type="button">HOW TO PLAY</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="adminLogin" aria-label="admin login">
+      <div class="panel admin-login-panel">
+        <h2>Admin Login</h2>
+        <p>สำหรับเจ้าหน้าที่ NOMU เท่านั้น</p>
+        <div class="panel-grid">
+          <input id="adminUser" type="text" autocomplete="username" placeholder="User">
+          <input id="adminPass" type="password" autocomplete="current-password" placeholder="Password">
+        </div>
+        <div class="panel-actions">
+          <button id="closeAdminLogin" type="button">ยกเลิก</button>
+          <button id="enterAdmin" type="button">เข้าสู่ Admin</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="downloadQrModal" aria-label="download qr">
+      <div class="panel qr-panel">
+        <h2>สแกนเพื่อรับรูป</h2>
+        <p>หลังดาวน์โหลด ระบบจะแสดง QR สำหรับให้อีกเครื่องสแกนเปิดรูปการ์ดได้ทันที</p>
+        <div class="qr-layout">
+          <img id="qrPreview" alt="downloaded NOMU card preview">
+          <div class="qr-box">
+            <canvas id="downloadQrCanvas"></canvas>
+            <img id="downloadQrImage" alt="QR code">
+            <p id="qrStatus">กำลังเตรียม QR...</p>
+          </div>
+        </div>
+        <div class="panel-actions">
+          <button id="qrShareCard" type="button">Share</button>
+          <button id="qrPrintCard" type="button">Print</button>
+          <button id="qrCloseHome" type="button">กลับหน้าแรก</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="photoPrompt" aria-label="photo prompt">
+      <div class="panel">
+        <h2>ถ่ายรูปคู่แก้วก่อนมั้ย?</h2>
+        <p>ถ้าถ่ายตอนนี้ ภาพคู่กับมัทฉะแก้วโปรดของคุณจะถูกวางบนการ์ด Daily Fortune ตอนเปิดโชค</p>
+        <div class="selfie-preview" id="selfiePreview">
+          <div class="photo-countdown" id="photoCountdown">กดพร้อมถ่าย</div>
+        </div>
+        <div class="panel-actions">
+          <button id="skipIntroPhoto" type="button">ยังไม่ถ่าย</button>
+          <button id="startIntroPhoto" type="button">เปิดกล้องเพื่อถ่าย</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="photoConfirm" aria-label="photo confirmation">
+      <div class="panel confirm-photo">
+        <h2>ยืนยันรูปสำหรับการ์ด</h2>
+        <p>รูปนี้จะใช้เฉพาะรอบนี้ และจะถูกล้างเมื่อจบรอบ</p>
+        <canvas id="confirmPhotoPreview" aria-label="photo crop preview"></canvas>
+        <p class="crop-note">ภาพจะเต็มกรอบแนวนอนโดยไม่บีบสัดส่วน กรอบนี้คือพื้นที่ที่จะถูกใช้จริงบนการ์ด</p>
+        <div class="photo-editor-controls" aria-label="photo crop controls">
+          <button type="button" data-photo-edit="up">เลื่อนขึ้น</button>
+          <button type="button" data-photo-edit="reset">ตรงกลาง</button>
+          <button type="button" data-photo-edit="down">เลื่อนลง</button>
+          <button type="button" data-photo-edit="rotateLeft">หมุนซ้าย</button>
+          <button type="button" data-photo-edit="rotateReset">ไม่หมุน</button>
+          <button type="button" data-photo-edit="rotateRight">หมุนขวา</button>
+        </div>
+        <div class="panel-actions">
+          <button id="retakeIntroPhoto" type="button">ถ่ายใหม่</button>
+          <button id="confirmIntroPhoto" type="button">ใช้รูปนี้</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="howToPlay" aria-label="how to play">
+      <div class="panel">
+        <h2>HOW TO PLAY</h2>
+        <div class="how-list">
+          <div class="how-step"><div class="step-label">STEP 1</div><p>ซื้อเมนูใดก็ได้จาก NOMU จะได้รับรหัส order มา</p></div>
+          <div class="how-step"><div class="step-label">STEP 2</div><p>กรอกเลขใบเสร็จบนเครื่อง ก่อนเข้าระบบ</p></div>
+          <div class="how-step"><div class="step-label">STEP 3</div><p>ถ่ายรูปคู่กับมัทฉะแก้วโปรดของคุณ ภาพนี้จะถูกใช้บนการ์ดของคุณ</p></div>
+          <div class="how-step"><div class="step-label">STEP 4</div><p>ยกมือขึ้นหน้ากล้อง โบกมือซ้าย-ขวา เลือกการ์ดที่รู้สึกว่าเรียกหา</p></div>
+          <div class="how-step"><div class="step-label">STEP 5</div><p>เปิดโชคประจำวัน รับข้อความฮีลใจ หรืออาจได้รับรางวัลพิเศษ เช่น ส่วนลด 10%, ส่วนลด 20%, ฟรี Topping, Lucky Upgrade, Rare Card</p></div>
+          <div class="how-step"><div class="step-label">STEP 6</div><p>ดาวน์โหลดการ์ดของคุณ พร้อมข้อความประจำวัน เพื่อแชร์ลง Instagram, TikTok, Facebook</p></div>
+          <div class="how-step"><div class="step-label">STEP 7</div><p>พิมพ์เป็น Photo Receipt เก็บเป็นความทรงจำ หรือสะสมเป็นคอลเลกชัน</p></div>
+        </div>
+        <div class="panel-actions">
+          <button id="closeHowToPlay" type="button">ปิด</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="overlay" id="adminPanel" aria-label="admin settings">
+      <div class="panel">
+        <h2>Admin Settings</h2>
+        <p>ตั้งค่าข้อความและรางวัลสำหรับเครื่องนี้ ข้อมูลจะถูกบันทึกใน browser ด้วย localStorage</p>
+        <div class="admin-fields">
+          <div class="admin-field">
+            <span>ข้อความบนการ์ด แยกเป็นอัน ๆ</span>
+            <textarea class="admin-source" id="adminMessages" placeholder="ข้อ 1&#10;ข้อ 2&#10;ข้อ 3"></textarea>
+            <div class="admin-list" id="adminMessageItems"></div>
+            <button id="addAdminMessage" type="button">เพิ่มข้อความ</button>
+          </div>
+          <div class="admin-field">
+            <span>รางวัล/ส่วนลด แยกเป็นอัน ๆ</span>
+            <textarea class="admin-source" id="adminRewards" placeholder="ส่วนลด 10%&#10;ส่วนลด 20%&#10;ฟรี Topping"></textarea>
+            <div class="admin-list" id="adminRewardItems"></div>
+            <button id="addAdminReward" type="button">เพิ่มรางวัล</button>
+          </div>
+          <div class="admin-field admin-wide-field">
+            <span>QR upload endpoint</span>
+            <input id="adminUploadEndpoint" type="url" inputmode="url" placeholder="https://your-server.example/upload">
+            <p class="admin-note">Endpoint ต้องรับ POST multipart/form-data ชื่อ file และส่ง URL รูปกลับมาเป็น text หรือ JSON เช่น {"url":"https://..."}</p>
+          </div>
+          <div class="admin-field admin-wide-field">
+            <span>Supabase สำหรับ QR และประวัติการเล่น</span>
+            <div class="admin-subgrid">
+              <input id="adminSupabaseUrl" type="url" inputmode="url" placeholder="Supabase project URL">
+              <input id="adminSupabaseAnonKey" type="password" autocomplete="off" placeholder="Supabase anon key">
+              <input id="adminSupabaseBucket" type="text" placeholder="Storage bucket เช่น nomu-cards">
+              <input id="adminSupabaseTable" type="text" placeholder="Table เช่น nomu_card_logs">
+            </div>
+            <p class="admin-note">แนะนำใช้ bucket แบบ public สำหรับให้ QR เปิดรูปได้ทันที และเปิด RLS เฉพาะ insert/select ที่จำเป็นสำหรับ anon key</p>
+          </div>
+          <div class="admin-field admin-wide-field">
+            <span>ประวัติการใช้งาน</span>
+            <div class="admin-tools">
+              <button id="loadUsage" type="button">ดึงข้อมูลล่าสุด</button>
+              <button id="exportUsage" type="button">Export CSV</button>
+            </div>
+            <p class="usage-summary" id="usageSummary">ยังไม่ได้ดึงข้อมูล</p>
+            <div class="usage-table-wrap">
+              <table class="usage-table" id="usageTable">
+                <thead>
+                  <tr>
+                    <th>เวลา</th>
+                    <th>Order</th>
+                    <th>ข้อความ</th>
+                    <th>โปรโมชั่น</th>
+                    <th>รูปการ์ด</th>
+                  </tr>
+                </thead>
+                <tbody id="usageTableBody">
+                  <tr><td colspan="5">กดดึงข้อมูลล่าสุด</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
+        </div>
+        <div class="panel-actions">
+          <button id="resetAdmin" type="button">คืนค่าเดิม</button>
+          <button id="closeAdmin" type="button">ปิด</button>
+          <button id="saveAdmin" type="button">บันทึก</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="loading" id="loading">
+      <div class="loader">
+        <div class="loader-mark"></div>
+        <h2>NOMU Daily Fortune</h2>
+        <p>กำลังปลุกพลังมัทฉะ การ์ดประจำวัน และการติดตามมือแบบเรียลไทม์</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script>
+    window.gsap ||= {
+      to(targets, vars = {}) { applyVars(targets, vars); vars.onComplete?.(); return this; },
+      set(targets, vars = {}) { applyVars(targets, vars); return this; },
+      fromTo(targets, _from = {}, to = {}) { applyVars(targets, to); to.onComplete?.(); return this; },
+      killTweensOf() {},
+      timeline() { return this; }
+    };
+
+    function applyVars(targets, vars) {
+      const list = Array.isArray(targets) ? targets : [targets];
+      list.flat().filter(Boolean).forEach(target => {
+        if (!target.style) return;
+        if ("opacity" in vars) target.style.opacity = vars.opacity;
+        if ("visibility" in vars) target.style.visibility = vars.visibility;
+        if ("zIndex" in vars) target.style.zIndex = vars.zIndex;
+        if ("filter" in vars) target.style.filter = vars.filter;
+        const transforms = [];
+        if ("x" in vars) transforms.push(`translateX(${typeof vars.x === "number" ? vars.x + "px" : vars.x})`);
+        if ("y" in vars) transforms.push(`translateY(${typeof vars.y === "number" ? vars.y + "px" : vars.y})`);
+        if ("z" in vars) transforms.push(`translateZ(${typeof vars.z === "number" ? vars.z + "px" : vars.z})`);
+        if ("scale" in vars) transforms.push(`scale(${vars.scale})`);
+        if ("rotationX" in vars) transforms.push(`rotateX(${vars.rotationX}deg)`);
+        if ("rotationY" in vars) transforms.push(`rotateY(${vars.rotationY}deg)`);
+        if ("rotationZ" in vars) transforms.push(`rotateZ(${vars.rotationZ}deg)`);
+        if (transforms.length) target.style.transform = transforms.join(" ");
+      });
+    }
+  </script>
+  <script>
+    (() => {
+      const defaultFortunes = [
+        "วันนี้ไม่ต้องเก่งที่สุด แค่ไปต่อก็พอ",
+        "บางวันที่ดี เริ่มจากการไม่ยอมแพ้ตั้งแต่เช้า",
+        "คุณมาไกลกว่าที่ตัวเองคิดนะ",
+        "ทุกก้าวเล็ก ๆ กำลังพาคุณไปยังที่ที่ต้องการ",
+        "ไม่เป็นไรถ้าวันนี้ช้า ขอแค่อย่าหยุดเดิน",
+        "เรื่องบางเรื่องต้องใช้เวลา เหมือนมัทฉะที่ต้องค่อย ๆ ชง",
+        "โลกไม่ได้ต้องการคนสมบูรณ์แบบ แค่ต้องการคุณในแบบที่เป็น",
+        "คุณไม่จำเป็นต้องพิสูจน์คุณค่าให้ใครเห็น",
+        "วันนี้ลองใจดีกับตัวเองสักนิดนะ",
+        "เหนื่อยได้ พักได้ แต่ยังไม่ต้องยอมแพ้",
+        "ความสุขเล็ก ๆ ก็มีค่าพอจะจดจำ",
+        "บางครั้งการผ่านวันธรรมดาไปได้ ก็เก่งมากแล้ว",
+        "เชื่อเถอะ มีบางอย่างดี ๆ กำลังเดินมาหาคุณ",
+        "คุณไม่ได้เริ่มช้า คุณแค่มีจังหวะของตัวเอง",
+        "ทุกเช้ามีโอกาสให้เริ่มใหม่เสมอ",
+        "อย่ารีบเปรียบเทียบเส้นทางของตัวเองกับใคร",
+        "วันนี้อาจไม่ง่าย แต่คุณก็ยังอยู่ตรงนี้",
+        "บางครั้งความกล้าคือการลุกขึ้นมาอีกครั้ง",
+        "คุณคู่ควรกับสิ่งดี ๆ มากกว่าที่คิด",
+        "สิ่งเล็ก ๆ ที่คุณทำวันนี้ อาจเปลี่ยนอนาคตได้",
+        "ไม่ต้องเร่งให้ทุกอย่างสมบูรณ์ แค่ค่อย ๆ เติบโต",
+        "รอยยิ้มของคุณมีค่ากับใครบางคนเสมอ",
+        "วันแย่ ๆ ไม่ได้แปลว่าชีวิตแย่",
+        "จงภูมิใจในตัวเอง แม้ไม่มีใครเห็น",
+        "วันนี้เป็นวันที่ดีพอสำหรับการเริ่มต้น",
+        "ขอให้มัทฉะแก้วนี้ เติมพลังให้หัวใจคุณ",
+        "ความพยายามของคุณ ไม่เคยสูญเปล่า",
+        "บางคำตอบจะมาถึง เมื่อถึงเวลาของมัน",
+        "ขอให้คุณกลับมายิ้มให้ตัวเองได้อีกครั้ง",
+        "คุณเก่งมากแล้ว ขอบคุณที่สู้มาถึงวันนี้",
+        "วันนี้จักรวาลฝากมาบอกว่า “คุณกำลังมาถูกทาง”",
+        "คุณได้รับ +10% ความโชคดี สำหรับสัปดาห์นี้",
+        "มีเรื่องดี ๆ รอคุณอยู่ข้างหน้า อย่าเพิ่งหยุดนะ",
+        "จงเชื่อในตัวเอง เหมือนที่เราเชื่อในมัทฉะแก้วนี้"
+      ];
+
+      const defaultRewards = [
+        "ส่วนลด 10%",
+        "ส่วนลด 20%",
+        "ฟรี Topping",
+        "Lucky Upgrade",
+        "Rare Card"
+      ];
+
+      let fortunes = [];
+      let rewards = [];
+      let rewardRules = [];
+
+      const aiFragments = [
+        "พลังของไพ่ใบนี้ชี้ไปที่การค่อย ๆ กลับมาฟังเสียงตัวเอง วันนี้ไม่ต้องรีบตอบทุกอย่าง แค่เลือกหนึ่งก้าวที่ทำให้หัวใจเบาลงก็พอ",
+        "สำรับกำลังสะท้อนความพยายามที่เงียบแต่จริง จักรวาลไม่ได้ขอให้คุณสมบูรณ์แบบ แค่ขอให้คุณซื่อสัตย์กับจังหวะของตัวเอง",
+        "แสงสีทองบนไพ่บอกถึงโชคเล็ก ๆ ที่เกิดจากการไม่ถอดใจ หากวันนี้มีเรื่องยาก ให้ถือว่ามันเป็นประตู ไม่ใช่กำแพง",
+        "คำทำนายนี้อ่อนโยนมาก คุณกำลังถูกเชิญให้พัก หายใจ และกลับมาเลือกสิ่งที่ดูแลตัวเองได้จริง"
+      ];
+
+      const soundHooks = {
+        hover: () => console.debug("[sound-hook] card-hover: soft chime"),
+        pinch: () => console.debug("[sound-hook] pinch-grab: silk shimmer"),
+        release: () => console.debug("[sound-hook] release-select: low magical hit"),
+        flip: () => console.debug("[sound-hook] reveal-flip: cinematic swell"),
+        shuffle: () => console.debug("[sound-hook] shuffle: cards in air"),
+        camera: () => console.debug("[sound-hook] camera-ready: crystal ping")
+      };
+
+      const stage = document.getElementById("stage");
+      const stars = document.getElementById("stars");
+      const particles = document.getElementById("particles");
+      const trails = document.getElementById("trails");
+      const cursor = document.getElementById("orbCursor");
+      const status = document.getElementById("status");
+      const toast = document.getElementById("toast");
+      const reading = document.getElementById("reading");
+      const fortuneText = document.getElementById("fortuneText");
+      const aiText = document.getElementById("aiText");
+      const rewardBadge = document.getElementById("rewardBadge");
+      const loading = document.getElementById("loading");
+      const video = document.getElementById("inputVideo");
+      const videoPanel = document.querySelector(".video-panel");
+      const handCanvas = document.getElementById("handCanvas");
+      const handCtx = handCanvas.getContext("2d");
+      const photoPreview = document.getElementById("photoPreview");
+      const cameraStatus = document.getElementById("cameraStatus");
+      const startCamera = document.getElementById("startCamera");
+      const captureCard = document.getElementById("captureCard");
+      const shuffleCards = document.getElementById("shuffleCards");
+      const deckUpload = document.getElementById("deckUpload");
+      const singleUpload = document.getElementById("singleUpload");
+      const choiceModal = document.getElementById("choiceModal");
+      const attachPhoto = document.getElementById("attachPhoto");
+      const skipPhoto = document.getElementById("skipPhoto");
+      const orderGate = document.getElementById("orderGate");
+      const orderInput = document.getElementById("orderInput");
+      const enterOrder = document.getElementById("enterOrder");
+      const orderBadge = document.getElementById("orderBadge");
+      const howToPlay = document.getElementById("howToPlay");
+      const howToPlayBtn = document.getElementById("howToPlayBtn");
+      const openHowFromGate = document.getElementById("openHowFromGate");
+      const closeHowToPlay = document.getElementById("closeHowToPlay");
+      const adminPanel = document.getElementById("adminPanel");
+      const adminEntryBtn = document.getElementById("adminEntryBtn");
+      const adminLogin = document.getElementById("adminLogin");
+      const adminUser = document.getElementById("adminUser");
+      const adminPass = document.getElementById("adminPass");
+      const enterAdmin = document.getElementById("enterAdmin");
+      const closeAdminLogin = document.getElementById("closeAdminLogin");
+      const closeAdmin = document.getElementById("closeAdmin");
+      const saveAdmin = document.getElementById("saveAdmin");
+      const resetAdmin = document.getElementById("resetAdmin");
+      const adminMessages = document.getElementById("adminMessages");
+      const adminRewards = document.getElementById("adminRewards");
+      const adminUploadEndpoint = document.getElementById("adminUploadEndpoint");
+      const adminSupabaseUrl = document.getElementById("adminSupabaseUrl");
+      const adminSupabaseAnonKey = document.getElementById("adminSupabaseAnonKey");
+      const adminSupabaseBucket = document.getElementById("adminSupabaseBucket");
+      const adminSupabaseTable = document.getElementById("adminSupabaseTable");
+      const adminMessageItems = document.getElementById("adminMessageItems");
+      const adminRewardItems = document.getElementById("adminRewardItems");
+      const addAdminMessage = document.getElementById("addAdminMessage");
+      const addAdminReward = document.getElementById("addAdminReward");
+      const loadUsage = document.getElementById("loadUsage");
+      const exportUsage = document.getElementById("exportUsage");
+      const usageSummary = document.getElementById("usageSummary");
+      const usageTableBody = document.getElementById("usageTableBody");
+      const adminRewardCounterText = document.getElementById("adminRewardCounterText");
+      const photoPrompt = document.getElementById("photoPrompt");
+      const photoConfirm = document.getElementById("photoConfirm");
+      const confirmPhotoPreview = document.getElementById("confirmPhotoPreview");
+      const selfiePreview = document.getElementById("selfiePreview");
+      const photoCountdown = document.getElementById("photoCountdown");
+      const startIntroPhoto = document.getElementById("startIntroPhoto");
+      const skipIntroPhoto = document.getElementById("skipIntroPhoto");
+      const retakeIntroPhoto = document.getElementById("retakeIntroPhoto");
+      const confirmIntroPhoto = document.getElementById("confirmIntroPhoto");
+      const downloadCard = document.getElementById("downloadCard");
+      const shareCard = document.getElementById("shareCard");
+      const printCard = document.getElementById("printCard");
+      const homeCard = document.getElementById("homeCard");
+      const readyGuide = document.getElementById("readyGuide");
+      const readyGuideTitle = document.getElementById("readyGuideTitle");
+      const readyGuideText = document.getElementById("readyGuideText");
+      const downloadQrModal = document.getElementById("downloadQrModal");
+      const qrPreview = document.getElementById("qrPreview");
+      const downloadQrCanvas = document.getElementById("downloadQrCanvas");
+      const downloadQrImage = document.getElementById("downloadQrImage");
+      const qrStatus = document.getElementById("qrStatus");
+      const qrShareCard = document.getElementById("qrShareCard");
+      const qrPrintCard = document.getElementById("qrPrintCard");
+      const qrCloseHome = document.getElementById("qrCloseHome");
+      const photoEditButtons = Array.from(document.querySelectorAll("[data-photo-edit]"));
+
+      let cards = [];
+      let camera = null;
+      let hands = null;
+      let pointer = { x: innerWidth / 2, y: innerHeight / 2, active: false, pinching: false };
+      let dragged = null;
+      let hovered = null;
+      let selected = null;
+      let pendingReveal = null;
+      let playerPhoto = "";
+      let pendingPhoto = "";
+      let pendingSourceCanvas = null;
+      let photoEdit = { y: 0, rotation: 0 };
+      let currentReward = "";
+      let lastDownloadCanvas = null;
+      let latestUsageRows = [];
+      let resultResetTimer = null;
+      let photoReady = false;
+      let handGateReady = false;
+      let openHandFrames = 0;
+      let countdownTimer = null;
+      let readyCountdownTimer = null;
+      let imageQueueIndex = 0;
+      let customImages = [];
+      let lastTrail = 0;
+      let dragOffset = { x: 0, y: 0 };
+      let lastHandFrame = 0;
+      let isSendingHandFrame = false;
+      let isDealingCards = false;
+      let hasPreparedHandDeal = false;
+
+      function showToast(message) {
+        toast.textContent = message;
+        gsap.killTweensOf(toast);
+        gsap.fromTo(toast, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: .25, ease: "power2.out" });
+        gsap.to(toast, { opacity: 0, y: -8, duration: .35, delay: 2.8, ease: "power2.in" });
+      }
+
+      function clearResultResetTimer() {
+        if (resultResetTimer) {
+          clearTimeout(resultResetTimer);
+          resultResetTimer = null;
+        }
+      }
+
+      function clearReadyCountdown() {
+        if (readyCountdownTimer) {
+          clearInterval(readyCountdownTimer);
+          readyCountdownTimer = null;
+        }
+      }
+
+      function hideReadingPanel() {
+        reading.classList.remove("visible", "card-only");
+        gsap.killTweensOf(reading);
+        gsap.set(reading, { opacity: 0, y: "130%", visibility: "hidden" });
+      }
+
+      function showReadyGuide(title, text) {
+        hideReadingPanel();
+        if (!selected && cards.length && !isDealingCards && !hasPreparedHandDeal) {
+          hasPreparedHandDeal = true;
+          layoutCards(true, true);
+        }
+        readyGuideTitle.textContent = title;
+        readyGuideText.textContent = text;
+        readyGuide.hidden = false;
+      }
+
+      function hideReadyGuide() {
+        readyGuide.hidden = true;
+      }
+
+      function startReadyCountdown() {
+        if (readyCountdownTimer || handGateReady) return;
+        let count = 3;
+        showReadyGuide(String(count), "เห็นมือครบ 5 นิ้วแล้ว เตรียมเริ่มเลือกการ์ด");
+        readyCountdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            showReadyGuide(String(count), "ค้างมือไว้ในกล้องอีกนิด");
+            return;
+          }
+          clearReadyCountdown();
+          handGateReady = true;
+          hideReadyGuide();
+          updateCameraStatus("พร้อมเล่น: บีบนิ้วเพื่อหยิบไพ่");
+        }, 1000);
+      }
+
+      function scheduleResultReset() {
+        clearResultResetTimer();
+        resultResetTimer = setTimeout(() => {
+          showToast("กลับไปหน้าแรกอัตโนมัติ");
+          restartExperience();
+        }, 60000);
+      }
+
+      function updatePhotoPreview() {
+        photoReady = Boolean(playerPhoto);
+        if (playerPhoto) {
+          photoPreview.src = playerPhoto;
+          photoPreview.hidden = false;
+        } else {
+          photoPreview.removeAttribute("src");
+          photoPreview.hidden = true;
+        }
+        updateCameraStatus();
+      }
+
+      function clearRoundPhoto() {
+        playerPhoto = "";
+        pendingPhoto = "";
+        pendingSourceCanvas = null;
+        photoEdit = { y: 0, rotation: 0 };
+        photoReady = false;
+        handGateReady = false;
+        hasPreparedHandDeal = false;
+        openHandFrames = 0;
+        clearReadyCountdown();
+        hideReadyGuide();
+        updatePhotoPreview();
+      }
+
+      function shouldRotateCameraFrame() {
+        const agent = navigator.userAgent || "";
+        const isAppleTablet = /iPad/i.test(agent) || (/Macintosh/i.test(agent) && navigator.maxTouchPoints > 1);
+        const isLine = /Line/i.test(agent);
+        return (isAppleTablet || isLine) && innerHeight > innerWidth && video.videoWidth > video.videoHeight;
+      }
+
+      function updateCameraOrientationClass() {
+        const rotate = shouldRotateCameraFrame();
+        video.classList.toggle("camera-rotated", rotate);
+        updateCameraPreviewAspect();
+      }
+
+      function updateCameraPreviewAspect() {
+        if (!video.videoWidth || !video.videoHeight) return;
+        const displayWidth = shouldRotateCameraFrame() ? video.videoHeight : video.videoWidth;
+        const displayHeight = shouldRotateCameraFrame() ? video.videoWidth : video.videoHeight;
+        videoPanel.style.setProperty("--camera-preview-aspect", `${displayWidth} / ${displayHeight}`);
+      }
+
+      function makeNormalizedVideoFrame() {
+        const rotate = shouldRotateCameraFrame();
+        const sourceWidth = video.videoWidth;
+        const sourceHeight = video.videoHeight;
+        const frame = document.createElement("canvas");
+        frame.width = rotate ? sourceHeight : sourceWidth;
+        frame.height = rotate ? sourceWidth : sourceHeight;
+        const frameCtx = frame.getContext("2d");
+        frameCtx.imageSmoothingEnabled = true;
+        frameCtx.imageSmoothingQuality = "high";
+
+        if (rotate) {
+          frameCtx.translate(frame.width, 0);
+          frameCtx.rotate(Math.PI / 2);
+          frameCtx.drawImage(video, 0, 0, sourceWidth, sourceHeight);
+        } else {
+          frameCtx.drawImage(video, 0, 0, sourceWidth, sourceHeight);
+        }
+        return frame;
+      }
+
+      function renderEditedPhotoDataUrl(quality = .94) {
+        if (!pendingSourceCanvas) return "";
+        const targetAspect = 87.2 / 45.2;
+        const outputWidth = 1400;
+        const outputHeight = Math.round(outputWidth / targetAspect);
+        const source = getEditedPhotoSource();
+
+        const canvas = document.createElement("canvas");
+        canvas.width = outputWidth;
+        canvas.height = outputHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        const crop = getCoverCrop(source, targetAspect);
+        ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, outputWidth, outputHeight);
+        return canvas.toDataURL("image/jpeg", quality);
+      }
+
+      function getCoverCrop(source, targetAspect) {
+        let sx = 0;
+        let sy = 0;
+        let sw = source.width;
+        let sh = source.height;
+        const sourceAspect = sw / sh;
+
+        if (sourceAspect > targetAspect) {
+          sw = sh * targetAspect;
+          sx = (source.width - sw) / 2;
+        } else {
+          sh = sw / targetAspect;
+          const maxSy = Math.max(0, source.height - sh);
+          const verticalPosition = Math.min(.95, Math.max(.05, .5 + photoEdit.y));
+          sy = maxSy * verticalPosition;
+        }
+
+        return { sx, sy, sw, sh };
+      }
+
+      function getEditedPhotoSource() {
+        const turns = (((photoEdit.rotation || 0) % 4) + 4) % 4;
+        if (!turns) return pendingSourceCanvas;
+        const source = pendingSourceCanvas;
+        const rotated = document.createElement("canvas");
+        rotated.width = turns % 2 ? source.height : source.width;
+        rotated.height = turns % 2 ? source.width : source.height;
+        const ctx = rotated.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        if (turns === 1) {
+          ctx.translate(rotated.width, 0);
+          ctx.rotate(Math.PI / 2);
+        } else if (turns === 2) {
+          ctx.translate(rotated.width, rotated.height);
+          ctx.rotate(Math.PI);
+        } else {
+          ctx.translate(0, rotated.height);
+          ctx.rotate(-Math.PI / 2);
+        }
+        ctx.drawImage(source, 0, 0);
+        return rotated;
+      }
+
+      function grabCameraFrame() {
+        pendingSourceCanvas = makeNormalizedVideoFrame();
+        return renderEditedPhotoDataUrl(.94);
+      }
+
+      function showSelfieVideo() {
+        updateCameraOrientationClass();
+        if (video.parentElement !== selfiePreview) {
+          selfiePreview.insertBefore(video, photoCountdown);
+        }
+      }
+
+      function restoreVideoPanel() {
+        video.classList.remove("camera-rotated");
+        if (video.parentElement !== videoPanel) {
+          videoPanel.insertBefore(video, handCanvas);
+        }
+      }
+
+      function drawPhotoEditorPreview() {
+        if (!pendingSourceCanvas) return;
+        const canvas = confirmPhotoPreview;
+        const width = 900;
+        const height = Math.round(width / (87.2 / 45.2));
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        const source = getEditedPhotoSource();
+        const targetAspect = width / height;
+        const crop = getCoverCrop(source, targetAspect);
+        ctx.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height);
+      }
+
+      function showPhotoConfirmation(src) {
+        pendingPhoto = src;
+        drawPhotoEditorPreview();
+        restoreVideoPanel();
+        hideOverlay(photoPrompt);
+        showOverlay(photoConfirm);
+      }
+
+      function confirmRoundPhoto() {
+        pendingPhoto = renderEditedPhotoDataUrl(.94) || pendingPhoto;
+        if (!pendingPhoto) return;
+        playerPhoto = pendingPhoto;
+        pendingPhoto = "";
+        updatePhotoPreview();
+        restoreVideoPanel();
+        hideOverlay(photoConfirm);
+        handGateReady = false;
+        hasPreparedHandDeal = false;
+        openHandFrames = 0;
+        updateCameraStatus("แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่");
+        showReadyGuide("แบมือ 5 นิ้ว", "ถ้าพร้อมแล้ว ระบบจะนับถอยหลัง 3 วิ");
+      }
+
+      function canPlayCards() {
+        return photoReady && handGateReady;
+      }
+
+      function updateCameraStatus(message = "") {
+        if (message) {
+          cameraStatus.textContent = message;
+        } else if (!photoReady) {
+          cameraStatus.textContent = "กำลังรอรูป preview ก่อนเริ่มเล่น";
+        } else if (!handGateReady) {
+          cameraStatus.textContent = "แบมือให้เห็นครบ 5 นิ้วก่อนหยิบไพ่";
+        } else {
+          cameraStatus.textContent = "พร้อมเล่น: บีบนิ้วเพื่อหยิบไพ่";
+        }
+      }
+
+      function countOpenFingers(landmarks) {
+        const fingers = [
+          landmarks[8].y < landmarks[6].y - .015,
+          landmarks[12].y < landmarks[10].y - .015,
+          landmarks[16].y < landmarks[14].y - .015,
+          landmarks[20].y < landmarks[18].y - .015,
+          Math.abs(landmarks[4].x - landmarks[3].x) > .035
+        ];
+        return fingers.filter(Boolean).length;
+      }
+
+      function readLines(value) {
+        return String(value || "")
+          .split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(Boolean);
+      }
+
+      const storageFallback = {};
+
+      function storageGet(key) {
+        try {
+          return localStorage.getItem(key) ?? storageFallback[key] ?? null;
+        } catch (error) {
+          console.warn("storage read failed", key, error);
+          return storageFallback[key] ?? null;
+        }
+      }
+
+      function storageSet(key, value) {
+        storageFallback[key] = String(value);
+        try {
+          localStorage.setItem(key, String(value));
+          return true;
+        } catch (error) {
+          console.warn("storage write failed", key, error);
+          return false;
+        }
+      }
+
+      function storageRemove(key) {
+        delete storageFallback[key];
+        try {
+          localStorage.removeItem(key);
+          return true;
+        } catch (error) {
+          console.warn("storage remove failed", key, error);
+          return false;
+        }
+      }
+
+      function getSupabaseConfig() {
+        return {
+          url: (storageGet("nomuSupabaseUrl") || "").trim(),
+          anonKey: (storageGet("nomuSupabaseAnonKey") || "").trim(),
+          bucket: (storageGet("nomuSupabaseBucket") || "nomu-cards").trim(),
+          table: (storageGet("nomuSupabaseTable") || "nomu_card_logs").trim()
+        };
+      }
+
+      function hasSupabaseConfig(config = getSupabaseConfig()) {
+        return Boolean(config.url && config.anonKey && config.bucket && config.table);
+      }
+
+      function getSupabaseClient(config = getSupabaseConfig()) {
+        if (!hasSupabaseConfig(config)) return null;
+        if (!window.supabase?.createClient) {
+          throw new Error("Supabase library is not loaded");
+        }
+        return window.supabase.createClient(config.url, config.anonKey);
+      }
+
+      function safeFilePart(value) {
+        return String(value || "daily")
+          .trim()
+          .replace(/[^\w-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 80) || "daily";
+      }
+
+      function currentUsagePayload(cardUrl = "") {
+        return {
+          order_no: storageGet("nomuCurrentOrder") || "",
+          card_url: cardUrl,
+          fortune_text: fortuneText.textContent || "",
+          reward_text: currentReward || "",
+          created_at: new Date().toISOString(),
+          user_agent: navigator.userAgent || ""
+        };
+      }
+
+      async function uploadCardToSupabase(canvas) {
+        const config = getSupabaseConfig();
+        if (!hasSupabaseConfig(config)) return "";
+        const client = getSupabaseClient(config);
+        const file = await canvasToFile(canvas);
+        if (!file) return "";
+        const order = safeFilePart(storageGet("nomuCurrentOrder") || "daily");
+        const day = new Date().toISOString().slice(0, 10);
+        const path = `cards/${day}/${order}-${Date.now()}.png`;
+        const { error: uploadError } = await client.storage
+          .from(config.bucket)
+          .upload(path, file, { contentType: "image/png", upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: publicData } = client.storage.from(config.bucket).getPublicUrl(path);
+        const cardUrl = publicData?.publicUrl || "";
+        if (cardUrl) {
+          const { error: insertError } = await client
+            .from(config.table)
+            .insert(currentUsagePayload(cardUrl));
+          if (insertError) console.warn("usage log insert failed", insertError);
+        }
+        return cardUrl;
+      }
+
+      function renderUsageRows(rows = []) {
+        latestUsageRows = rows;
+        usageSummary.textContent = rows.length
+          ? `แสดงข้อมูลล่าสุด ${rows.length} รายการ`
+          : "ยังไม่มีข้อมูล";
+        usageTableBody.innerHTML = "";
+        if (!rows.length) {
+          usageTableBody.innerHTML = `<tr><td colspan="5">ยังไม่มีข้อมูล</td></tr>`;
+          return;
+        }
+        rows.forEach(row => {
+          const tr = document.createElement("tr");
+          const created = row.created_at ? new Date(row.created_at).toLocaleString("th-TH") : "-";
+          const cardUrl = row.card_url || row.image_url || row.url || "";
+          tr.innerHTML = `
+            <td>${escapeHtml(created)}</td>
+            <td>${escapeHtml(row.order_no || row.order || "-")}</td>
+            <td>${escapeHtml(row.fortune_text || row.message || "-")}</td>
+            <td>${escapeHtml(row.reward_text || row.reward || "-")}</td>
+            <td>${cardUrl ? `<a href="${escapeAttr(cardUrl)}" target="_blank" rel="noopener">เปิดรูป</a>` : "-"}</td>
+          `;
+          usageTableBody.appendChild(tr);
+        });
+      }
+
+      async function loadUsageRows() {
+        const config = getSupabaseConfig();
+        if (!hasSupabaseConfig(config)) {
+          showToast("ตั้งค่า Supabase ก่อนดึงข้อมูล");
+          return;
+        }
+        const client = getSupabaseClient(config);
+        usageSummary.textContent = "กำลังดึงข้อมูล...";
+        const { data, error } = await client
+          .from(config.table)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(500);
+        if (error) {
+          console.error(error);
+          usageSummary.textContent = "ดึงข้อมูลไม่สำเร็จ ตรวจสอบ table/RLS";
+          showToast("ดึงข้อมูลไม่สำเร็จ");
+          return;
+        }
+        renderUsageRows(data || []);
+      }
+
+      function exportUsageCsv() {
+        if (!latestUsageRows.length) {
+          showToast("ดึงข้อมูลก่อน Export");
+          return;
+        }
+        const headers = ["created_at", "order_no", "fortune_text", "reward_text", "card_url"];
+        const csv = [
+          headers.join(","),
+          ...latestUsageRows.map(row => headers.map(key => csvCell(row[key] || "")).join(","))
+        ].join("\n");
+        const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `nomu-usage-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function csvCell(value) {
+        return `"${String(value).replace(/"/g, '""')}"`;
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, char => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[char]));
+      }
+
+      function escapeAttr(value) {
+        return escapeHtml(value);
+      }
+
+      function renderAdminList(container, values, placeholder) {
+        container.innerHTML = "";
+        const list = values.length ? values : [""];
+        list.forEach(value => {
+          const row = document.createElement("div");
+          row.className = "admin-item";
+          row.innerHTML = `
+            <input type="text" value="" placeholder="${placeholder}">
+            <button type="button">ลบ</button>
+          `;
+          const input = row.querySelector("input");
+          input.value = value;
+          row.querySelector("button").addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            row.remove();
+            if (!container.children.length) renderAdminList(container, [""], placeholder);
+          });
+          container.appendChild(row);
+        });
+      }
+
+      function getAdminList(container) {
+        return Array.from(container.querySelectorAll("input"))
+          .map(input => input.value.trim())
+          .filter(Boolean);
+      }
+
+      function addAdminListItem(container, placeholder) {
+        renderAdminList(container, [...getAdminList(container), ""], placeholder);
+        container.querySelector(".admin-item:last-child input")?.focus();
+      }
+
+      function normalizeRewardRule(rule, fallback = {}) {
+        const text = String(rule?.text ?? rule ?? fallback.text ?? "").trim();
+        return {
+          text,
+          enabled: Boolean(rule?.enabled ?? fallback.enabled ?? false),
+          every: Math.max(1, parseInt(rule?.every ?? fallback.every ?? 5, 10) || 5),
+          counter: Math.max(0, parseInt(rule?.counter ?? fallback.counter ?? 0, 10) || 0)
+        };
+      }
+
+      function renderRewardList(container, rules) {
+        container.innerHTML = "";
+        const list = rules.length ? rules : [normalizeRewardRule("")];
+        list.forEach(rule => {
+          const normalized = normalizeRewardRule(rule);
+          const row = document.createElement("div");
+          row.className = "admin-item reward-item";
+
+          const textInput = document.createElement("input");
+          textInput.type = "text";
+          textInput.value = normalized.text;
+          textInput.placeholder = "รางวัล/ส่วนลด";
+          textInput.dataset.rewardField = "text";
+
+          const enabledLabel = document.createElement("label");
+          enabledLabel.className = "reward-enabled";
+          const enabledInput = document.createElement("input");
+          enabledInput.type = "checkbox";
+          enabledInput.checked = normalized.enabled;
+          enabledInput.dataset.rewardField = "enabled";
+          enabledLabel.append(enabledInput, "เปิด");
+
+          const everyLabel = document.createElement("label");
+          everyLabel.className = "reward-every";
+          const everyInput = document.createElement("input");
+          everyInput.type = "number";
+          everyInput.min = "1";
+          everyInput.step = "1";
+          everyInput.inputMode = "numeric";
+          everyInput.value = String(normalized.every);
+          everyInput.dataset.rewardField = "every";
+          everyLabel.append("ทุกกี่คน", everyInput);
+
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.textContent = "ลบ";
+          removeButton.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            row.remove();
+            if (!container.children.length) renderRewardList(container, [normalizeRewardRule("")]);
+          });
+
+          const controls = document.createElement("div");
+          controls.className = "reward-controls";
+          controls.append(enabledLabel, everyLabel, removeButton);
+
+          row.dataset.counter = String(normalized.counter);
+          row.append(textInput, controls);
+          container.appendChild(row);
+        });
+      }
+
+      function getRewardRules(container) {
+        return Array.from(container.querySelectorAll(".reward-item"))
+          .map(row => {
+            const textInput = row.querySelector('[data-reward-field="text"]');
+            const enabledInput = row.querySelector('[data-reward-field="enabled"]');
+            const everyInput = row.querySelector('[data-reward-field="every"]');
+            return normalizeRewardRule({
+              text: textInput?.value,
+              enabled: enabledInput?.checked,
+              every: everyInput?.value,
+              counter: row.dataset.counter
+            });
+          })
+          .filter(rule => rule.text);
+      }
+
+      function addRewardRuleItem(container) {
+        renderRewardList(container, [...getRewardRules(container), normalizeRewardRule("")]);
+        container.querySelector(".reward-item:last-child input")?.focus();
+      }
+
+      function saveRewardRules() {
+        const okRules = storageSet("nomuRewardRules", JSON.stringify(rewardRules));
+        const okLegacy = storageSet("nomuFortuneRewards", rewardRules.map(rule => rule.text).join("\n"));
+        return okRules && okLegacy;
+      }
+
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function applyCardDesign() {
+        const savedBack = storageGet("nomuCardBackImage");
+        const savedFront = storageGet("nomuCardFrontImage");
+        const back = savedBack && !savedBack.includes("assets/nomu-card-back.jpg") ? savedBack : "nomu-card-back.jpg";
+        const front = savedFront && !savedFront.includes("assets/nomu-card-front.jpg") && !savedFront.includes("nomu-card-front.jpg") ? savedFront : "nomu-card-front-template.jpg";
+        document.documentElement.style.setProperty("--card-back-image", `url("${back}")`);
+        document.documentElement.style.setProperty("--card-front-image", `url("${front}")`);
+      }
+
+      function loadSettings() {
+        fortunes = readLines(storageGet("nomuFortuneMessages"));
+        if (!fortunes.length) fortunes = [...defaultFortunes];
+        const legacyRewards = readLines(storageGet("nomuFortuneRewards"));
+        const legacyEnabled = storageGet("nomuRewardEnabled") === "true";
+        const legacyEvery = Math.max(1, parseInt(storageGet("nomuRewardEvery") || "5", 10) || 5);
+        const legacyCounter = Math.max(0, parseInt(storageGet("nomuRewardCounter") || "0", 10) || 0);
+        try {
+          rewardRules = JSON.parse(storageGet("nomuRewardRules") || "[]").map(normalizeRewardRule).filter(rule => rule.text);
+        } catch (error) {
+          rewardRules = [];
+        }
+        if (!rewardRules.length) {
+          rewardRules = (legacyRewards.length ? legacyRewards : defaultRewards)
+            .map((text, index) => normalizeRewardRule(text, {
+              enabled: legacyEnabled,
+              every: legacyEvery,
+              counter: index === 0 ? legacyCounter : 0
+            }));
+        }
+        rewards = rewardRules.map(rule => rule.text);
+        playerPhoto = "";
+        applyCardDesign();
+        updatePhotoPreview();
+      }
+
+      function syncAdminFields() {
+        adminMessages.value = fortunes.join("\n");
+        adminRewards.value = rewards.join("\n");
+        adminUploadEndpoint.value = storageGet("nomuCardUploadEndpoint") || "";
+        adminSupabaseUrl.value = storageGet("nomuSupabaseUrl") || "";
+        adminSupabaseAnonKey.value = storageGet("nomuSupabaseAnonKey") || "";
+        adminSupabaseBucket.value = storageGet("nomuSupabaseBucket") || "nomu-cards";
+        adminSupabaseTable.value = storageGet("nomuSupabaseTable") || "nomu_card_logs";
+        renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
+        renderRewardList(adminRewardItems, rewardRules);
+        const enabledCount = rewardRules.filter(rule => rule.enabled).length;
+        adminRewardCounterText.textContent = `โปรโมชั่นทั้งหมด ${rewardRules.length} รายการ | เปิดใช้งาน ${enabledCount} รายการ`;
+      }
+
+      function maybeReward() {
+        const due = [];
+        rewardRules = rewardRules.map(rule => {
+          const next = normalizeRewardRule(rule);
+          if (!next.enabled) return next;
+          next.counter += 1;
+          if (next.counter >= next.every) {
+            next.counter = 0;
+            due.push(next.text);
+          }
+          return next;
+        });
+        saveRewardRules();
+        rewards = rewardRules.map(rule => rule.text);
+        if (!due.length) return "";
+        return due[Math.floor(Math.random() * due.length)];
+      }
+
+      function showOverlay(el) {
+        el.classList.add("visible");
+        if (el === photoConfirm) document.body.classList.add("photo-confirming");
+      }
+
+      function hideOverlay(el) {
+        el.classList.remove("visible");
+        if (el === photoConfirm) document.body.classList.remove("photo-confirming");
+      }
+
+      function rand(min, max) {
+        return Math.random() * (max - min) + min;
+      }
+
+      function seedAtmosphere() {
+        const starCount = Math.min(120, Math.round(innerWidth / 10));
+        stars.innerHTML = "";
+        particles.innerHTML = "";
+
+        for (let i = 0; i < starCount; i++) {
+          const star = document.createElement("i");
+          star.className = "star";
+          star.style.left = `${rand(0, 100)}%`;
+          star.style.top = `${rand(0, 100)}%`;
+          star.style.animationDelay = `${rand(-3, 0)}s`;
+          stars.appendChild(star);
+        }
+
+        for (let i = 0; i < 38; i++) {
+          const dust = document.createElement("i");
+          dust.className = "particle";
+          dust.style.left = `${rand(0, 100)}%`;
+          dust.style.setProperty("--drift", `${rand(-90, 90)}px`);
+          dust.style.setProperty("--dur", `${rand(8, 18)}s`);
+          dust.style.animationDelay = `${rand(-18, 0)}s`;
+          particles.appendChild(dust);
+        }
+      }
+
+      function makeCard(index) {
+        const card = document.createElement("article");
+        card.className = "tarot-card";
+        card.dataset.index = index;
+        card.dataset.fortune = fortunes[index % fortunes.length];
+        card.innerHTML = `
+          <div class="card-shell">
+            <div class="card-face card-back"></div>
+            <div class="card-face card-front">
+              <img alt="">
+              <div class="fortune-mini">${fortunes[index % fortunes.length]}</div>
+            </div>
+            <div class="glow-burst"></div>
+          </div>
+        `;
+        stage.appendChild(card);
+        const angle = (index / fortunes.length) * Math.PI * 2;
+        const radiusX = Math.min(innerWidth * .34, 440);
+        const radiusY = Math.min(innerHeight * .25, 230);
+        const cardData = {
+          el: card,
+          shell: card.querySelector(".card-shell"),
+          front: card.querySelector(".card-front"),
+          img: card.querySelector("img"),
+          glow: card.querySelector(".glow-burst"),
+          x: innerWidth / 2 + Math.cos(angle) * radiusX + rand(-32, 32),
+          y: innerHeight / 2 + Math.sin(angle) * radiusY + rand(-28, 28),
+          rot: rand(-18, 18),
+          z: rand(-110, 120),
+          revealed: false,
+          fortune: fortunes[index % fortunes.length]
+        };
+        card.addEventListener("pointerdown", event => {
+          if (selected) return;
+          event.preventDefault();
+          beginDrag(cardData, event.clientX, event.clientY);
+        });
+        window.addEventListener("pointermove", event => {
+          if (!dragged || dragged !== cardData || pointer.active) return;
+          dragCard(event.clientX, event.clientY);
+        });
+        window.addEventListener("pointerup", () => {
+          if (!dragged || dragged !== cardData || pointer.active) return;
+          releaseCard();
+        });
+        return cardData;
+      }
+
+      function stackCardsForDeal() {
+        const usableTop = innerWidth < 820 ? 175 : 118;
+        const cardH = cards[0]?.el.offsetHeight || (cards[0]?.el.offsetWidth || 120) * 1.4;
+        const stackY = usableTop + (innerHeight - usableTop) * .46 - cardH / 2;
+        cards.forEach((card, index) => {
+          if (card === selected) return;
+          gsap.killTweensOf(card.el);
+          gsap.set(card.el, {
+            x: -card.el.offsetWidth / 2 + rand(-5, 5),
+            y: stackY - innerHeight / 2 + rand(-5, 5),
+            z: index * 2,
+            scale: .96,
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: rand(-5, 5),
+            opacity: 1,
+            filter: "none",
+            zIndex: ""
+          });
+        });
+      }
+
+      function layoutCards(animate = true, fromStack = false) {
+        if (fromStack) stackCardsForDeal();
+        isDealingCards = animate;
+        hideReadingPanel();
+        const usableTop = innerWidth < 820 ? 175 : 118;
+        const cardW = cards[0]?.el.offsetWidth || 120;
+        const cardH = cards[0]?.el.offsetHeight || cardW * 1.4;
+        const centerY = usableTop + (innerHeight - usableTop) * .46;
+        const circleRadius = Math.min(
+          innerWidth * (innerWidth < 820 ? .34 : .31),
+          (innerHeight - usableTop) * (innerWidth < 820 ? .29 : .33),
+          innerWidth < 820 ? 310 : 420
+        );
+        cards.forEach((card, index) => {
+          if (card === selected) return;
+          gsap.killTweensOf(card.el);
+          const angle = ((index + 1) / cards.length) * Math.PI * 2 - Math.PI / 2;
+          const dealDelay = animate ? index * .085 : 0;
+          card.x = innerWidth / 2 + Math.cos(angle) * circleRadius - cardW / 2;
+          card.y = centerY + Math.sin(angle) * circleRadius - cardH / 2;
+          card.rot = angle * 180 / Math.PI + 90;
+          card.z = index;
+          const vars = {
+            x: card.x - stage.clientWidth / 2,
+            y: card.y - stage.clientHeight / 2,
+            z: card.z,
+            zIndex: 2,
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: card.rot,
+            duration: animate ? 1.15 : 0,
+            delay: dealDelay,
+            ease: "power3.out",
+            overwrite: true
+          };
+          gsap.to(card.el, vars);
+          gsap.to(card.el, {
+            y: "+=0",
+            rotationZ: card.rot,
+            duration: 4,
+            repeat: -1,
+            yoyo: true,
+            ease: "sine.inOut",
+            delay: animate ? dealDelay + 1.25 : 1
+          });
+        });
+        if (animate) {
+          const totalDelay = cards.length * .085 + 1.3;
+          setTimeout(() => { isDealingCards = false; }, totalDelay * 1000);
+        } else {
+          isDealingCards = false;
+        }
+      }
+
+      function createDeck() {
+        stage.innerHTML = "";
+        cards = fortunes.map((_, index) => makeCard(index));
+        stackCardsForDeal();
+        setTimeout(() => layoutCards(true), 160);
+      }
+
+      function setCardImage(card, src) {
+        card.img.src = src;
+        card.front.classList.add("has-image");
+      }
+
+      function clearCardImage(card) {
+        card.img.removeAttribute("src");
+        card.front.classList.remove("has-image");
+      }
+
+      function assignImages(files, single = false) {
+        const list = Array.from(files || []).filter(file => file.type.startsWith("image/"));
+        if (!list.length) return;
+        list.forEach(file => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const src = reader.result;
+            customImages.push(src);
+            const target = cards[imageQueueIndex % cards.length];
+            setCardImage(target, src);
+            imageQueueIndex++;
+            if (single) showToast("ใส่รูปลงบนการ์ดถัดไปแล้ว");
+          };
+          reader.readAsDataURL(file);
+        });
+        if (!single) showToast(`รับรูปการ์ด ${list.length} รูปแล้ว สำรับจะวนใช้รูปของคุณ`);
+      }
+
+      function beginDrag(card, x, y) {
+        if (isDealingCards) return false;
+        if (!canPlayCards()) {
+          updateCameraStatus();
+          return false;
+        }
+        if (selected) return;
+        dragged = card;
+        card.el.classList.add("dragging");
+        dragOffset.x = card.x - x;
+        dragOffset.y = card.y - y;
+        soundHooks.pinch();
+        gsap.killTweensOf(card.el);
+        gsap.to(card.el, {
+          z: 260,
+          scale: 1.1,
+          rotationX: -9,
+          rotationY: 10,
+          duration: .22,
+          ease: "power2.out"
+        });
+      }
+
+      function dragCard(x, y) {
+        if (!dragged) return;
+        dragged.x = x + dragOffset.x;
+        dragged.y = y + dragOffset.y;
+        const dx = (x - innerWidth / 2) / innerWidth;
+        const dy = (y - innerHeight / 2) / innerHeight;
+        gsap.to(dragged.el, {
+          x: dragged.x - stage.clientWidth / 2,
+          y: dragged.y - stage.clientHeight / 2,
+          rotationY: dx * 22,
+          rotationX: -dy * 20,
+          rotationZ: dragged.rot + dx * 10,
+          duration: .08,
+          overwrite: "auto"
+        });
+      }
+
+      function releaseCard() {
+        if (!dragged) return;
+        const card = dragged;
+        dragged = null;
+        card.el.classList.remove("dragging");
+        soundHooks.release();
+        revealCard(card);
+      }
+
+      function revealCard(card) {
+        if (selected) return;
+        selected = card;
+        card.el.classList.add("selected-card");
+        pendingReveal = card;
+        cards.forEach(other => {
+          if (other !== card) {
+            gsap.to(other.el, {
+              opacity: .12,
+              scale: .72,
+              z: -360,
+              filter: "blur(5px)",
+              duration: .7,
+              ease: "power3.out"
+            });
+          }
+        });
+
+        const fortune = card.fortune;
+        const reward = maybeReward();
+        currentReward = reward;
+        fortuneText.textContent = fortune;
+        aiText.textContent = reward
+          ? `รางวัลพิเศษของคุณ: ${reward}`
+          : aiFragments[Math.floor(Math.random() * aiFragments.length)];
+        rewardBadge.textContent = reward ? `สิทธิ์พิเศษ: ${reward}` : "";
+        rewardBadge.hidden = !reward;
+        rewardBadge.classList.toggle("visible", Boolean(reward));
+        if (playerPhoto) setCardImage(card, playerPhoto);
+        else clearCardImage(card);
+        reading.classList.add("card-only");
+        const isCompact = innerWidth < 820;
+        const isTablet = innerWidth >= 820 && innerWidth <= 1366;
+        const isWideTablet = isTablet && innerWidth > innerHeight;
+        const topClearance = isCompact ? 175 : 118;
+        const actionBarHeight = Math.max(reading.offsetHeight || 0, isCompact ? 92 : 86);
+        const bottomClearance = actionBarHeight + (isCompact ? 26 : isWideTablet ? 34 : isTablet ? 36 : 44);
+        const availableHeight = Math.max(260, innerHeight - topClearance - bottomClearance);
+        const targetCenterY = topClearance + availableHeight / 2;
+        const fitScale = Math.min(
+          (innerWidth * (isCompact ? .58 : isWideTablet ? .30 : isTablet ? .42 : .26)) / card.el.offsetWidth,
+          (availableHeight * .94) / card.el.offsetHeight,
+          isCompact ? 2.55 : isWideTablet ? 2.15 : isTablet ? 2.25 : 2.1
+        );
+        const targetX = -card.el.offsetWidth / 2;
+        const targetY = targetCenterY - innerHeight / 2 - card.el.offsetHeight / 2;
+
+        gsap.timeline()
+          .set(card.el, { zIndex: 9 })
+          .to(card.el, {
+            x: targetX,
+            y: targetY,
+            z: 180,
+            scale: fitScale,
+            rotationX: 0,
+            rotationY: 0,
+            rotationZ: 0,
+            duration: .82,
+            ease: "power4.inOut"
+          })
+          .call(() => finalizeReveal({ attach: Boolean(playerPhoto) }));
+
+        burst(card.x + card.el.offsetWidth / 2, card.y + card.el.offsetHeight / 2);
+      }
+
+      function finalizeReveal({ attach = false } = {}) {
+        const card = pendingReveal;
+        if (!card) return;
+        pendingReveal = null;
+        choiceModal.classList.remove("visible");
+        gsap.to(choiceModal, { opacity: 0, visibility: "hidden", duration: .2, ease: "power2.out" });
+        if (!attach) clearCardImage(card);
+        gsap.killTweensOf(reading);
+        gsap.set(reading, { opacity: 1, y: 0, visibility: "visible" });
+        reading.classList.add("visible", "card-only");
+        scheduleResultReset();
+        soundHooks.flip();
+        gsap.timeline()
+          .to(card.glow, { opacity: 1, scale: 1.3, duration: .38, ease: "power2.out" })
+          .to(card.shell, {
+            rotationY: 180,
+            duration: .88,
+            ease: "back.inOut(1.7)"
+          }, "-=.08")
+          .to(card.glow, { opacity: 0, scale: 2.4, duration: .7, ease: "power2.out" }, "-=.2");
+      }
+
+      function drawCenteredLines(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
+        const words = String(text || "").split(/\s+/).filter(Boolean);
+        const lines = [];
+        let line = "";
+        words.forEach(word => {
+          const next = line ? `${line} ${word}` : word;
+          if (ctx.measureText(next).width <= maxWidth || !line) {
+            line = next;
+          } else {
+            lines.push(line);
+            line = word;
+          }
+        });
+        if (line) lines.push(line);
+        lines.slice(0, maxLines).forEach((item, index) => {
+          ctx.fillText(item, x, y + index * lineHeight);
+        });
+        return Math.min(lines.length, maxLines) * lineHeight;
+      }
+
+      function drawCutLine(ctx, y, width) {
+        ctx.save();
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([12, 10]);
+        ctx.beginPath();
+        ctx.moveTo(22, y);
+        ctx.lineTo(width - 22, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = "700 18px Kanit, Arial, sans-serif";
+        ctx.fillStyle = "#111";
+        ctx.textAlign = "center";
+        ctx.fillText("ตัดตามเส้นนี้", width / 2, y - 10);
+        ctx.restore();
+      }
+
+      function composeReceiptCanvas(cardCanvas) {
+        const width = 576;
+        const section = 576;
+        const pad = 22;
+        const gap = 18;
+        const hasTicket = Boolean(currentReward);
+        const height = hasTicket ? section * 2 + gap : section;
+        const receiptCanvas = document.createElement("canvas");
+        receiptCanvas.width = width;
+        receiptCanvas.height = height;
+        const ctx = receiptCanvas.getContext("2d");
+
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+
+        const cardBox = section - pad * 2;
+        const cardScale = Math.min(cardBox / cardCanvas.width, cardBox / cardCanvas.height);
+        const cardWidth = Math.round(cardCanvas.width * cardScale);
+        const cardHeight = Math.round(cardCanvas.height * cardScale);
+        const cardX = Math.round((width - cardWidth) / 2);
+        const cardY = Math.round((section - cardHeight) / 2);
+        ctx.drawImage(cardCanvas, cardX, cardY, cardWidth, cardHeight);
+
+        if (!hasTicket) return receiptCanvas;
+
+        const ticketY = section + gap;
+        drawCutLine(ctx, section + gap / 2, width);
+
+        ctx.save();
+        ctx.translate(0, ticketY);
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(pad, pad, width - pad * 2, section - pad * 2);
+
+        ctx.fillStyle = "#111";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "alphabetic";
+        ctx.font = "900 34px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText("NOMU MATCHA", width / 2, 82);
+        ctx.font = "700 22px Kanit, Arial, sans-serif";
+        ctx.fillText(`Order: ${storageGet("nomuCurrentOrder") || "-"}`, width / 2, 120);
+
+        ctx.font = "900 52px Kanit, Arial, sans-serif";
+        drawCenteredLines(ctx, currentReward, width / 2, 220, width - pad * 4, 58, 2);
+        ctx.font = "800 22px Kanit, Arial, sans-serif";
+        ctx.fillText("แสดงตั๋วนี้ให้พนักงานก่อนชำระเงิน", width / 2, 434);
+        ctx.font = "800 18px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText("MATCHA FOR THE MODERN MIND.", width / 2, 480);
+        ctx.restore();
+
+        return receiptCanvas;
+      }
+
+      async function canvasToFile(canvas, filename = "nomu-daily-fortune.png") {
+        return new Promise(resolve => {
+          canvas.toBlob(blob => {
+            if (!blob) {
+              resolve(null);
+              return;
+            }
+            resolve(new File([blob], filename, { type: "image/png" }));
+          }, "image/png");
+        });
+      }
+
+      function makeQrImageDataUrl(sourceCanvas, width, quality, options = {}) {
+        const { background = "", type = "image/png" } = options;
+        const target = document.createElement("canvas");
+        target.width = width;
+        target.height = Math.max(1, Math.round(sourceCanvas.height * (width / sourceCanvas.width)));
+        const ctx = target.getContext("2d");
+        if (background) {
+          ctx.fillStyle = background;
+          ctx.fillRect(0, 0, target.width, target.height);
+        }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(sourceCanvas, 0, 0, target.width, target.height);
+        return target.toDataURL(type, quality);
+      }
+
+      async function drawQrPayload(payload) {
+        downloadQrImage.style.display = "none";
+        downloadQrCanvas.style.display = "block";
+        await QRCode.toCanvas(downloadQrCanvas, payload, {
+          width: 220,
+          margin: 1,
+          errorCorrectionLevel: "L",
+          color: { dark: "#0b0f0c", light: "#ffffff" }
+        });
+      }
+
+      function showQrImageFallback(payload) {
+        const src = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(payload)}`;
+        downloadQrCanvas.style.display = "none";
+        downloadQrImage.style.display = "block";
+        downloadQrImage.src = src;
+      }
+
+      async function uploadCardImage(canvas) {
+        const supabaseUrl = await uploadCardToSupabase(canvas);
+        if (supabaseUrl) return supabaseUrl;
+        const endpoint = window.NOMU_CARD_UPLOAD_ENDPOINT || storageGet("nomuCardUploadEndpoint") || "";
+        if (!endpoint) return "";
+        if (!/^https?:\/\//i.test(endpoint)) {
+          throw new Error("Upload endpoint must start with http:// or https://");
+        }
+        const file = await canvasToFile(canvas);
+        if (!file) return "";
+        const form = new FormData();
+        form.append("file", file);
+        form.append("order", storageGet("nomuCurrentOrder") || "");
+        const response = await fetch(endpoint, { method: "POST", body: form });
+        if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const json = await response.json();
+          return json.url || json.secure_url || json.link || json.data?.url || "";
+        }
+        return (await response.text()).trim();
+      }
+
+      async function getQrTargetFromCanvas(canvas) {
+        const configuredBuilder = window.NOMU_QR_URL_BUILDER;
+        if (typeof configuredBuilder === "function") {
+          const file = await canvasToFile(canvas);
+          return configuredBuilder({ file, canvas, order: storageGet("nomuCurrentOrder") || "" });
+        }
+
+        return uploadCardImage(canvas);
+      }
+
+      async function showDownloadQr(canvas) {
+        lastDownloadCanvas = canvas;
+        qrPreview.hidden = false;
+        qrPreview.onload = () => { qrPreview.hidden = false; };
+        qrPreview.onerror = () => { qrPreview.hidden = true; };
+        qrPreview.src = makeQrImageDataUrl(canvas, 520, .72);
+        qrStatus.textContent = "กำลังเตรียม QR...";
+        const ctx = downloadQrCanvas.getContext("2d");
+        ctx.clearRect(0, 0, downloadQrCanvas.width, downloadQrCanvas.height);
+        downloadQrCanvas.style.display = "block";
+        downloadQrImage.style.display = "none";
+        downloadQrImage.removeAttribute("src");
+        showOverlay(downloadQrModal);
+
+        try {
+          const qrTarget = await getQrTargetFromCanvas(canvas);
+          if (!qrTarget) {
+            downloadQrCanvas.style.display = "none";
+            downloadQrImage.style.display = "none";
+            qrStatus.textContent = "ยังไม่มีลิงก์รูปการ์ดจริง ต้องตั้งค่า NOMU_CARD_UPLOAD_ENDPOINT หรือ NOMU_QR_URL_BUILDER เพื่ออัปโหลดรูปก่อนสร้าง QR";
+            return;
+          }
+          if (window.QRCode?.toCanvas) {
+            await drawQrPayload(qrTarget);
+          } else {
+            showQrImageFallback(qrTarget);
+          }
+          qrStatus.textContent = "สแกนเพื่อเปิดลิงก์รูปการ์ดนี้บนอีกเครื่อง";
+        } catch (error) {
+          console.error(error);
+          downloadQrCanvas.style.display = "none";
+          downloadQrImage.style.display = "none";
+          qrStatus.textContent = "อัปโหลดรูปเพื่อสร้างลิงก์ไม่สำเร็จ ตรวจสอบ endpoint หรือระบบฝากไฟล์";
+        }
+      }
+
+      async function renderSelectedCard({ receipt = false } = {}) {
+        if (!selected) {
+          showToast("เลือกการ์ดก่อน");
+          return null;
+        }
+        if (!window.html2canvas) {
+          showToast("ยังโหลดระบบดาวน์โหลดไม่เสร็จ");
+          return null;
+        }
+        const cardCanvas = await html2canvas(selected.el, {
+          backgroundColor: null,
+          scale: Math.min(3, window.devicePixelRatio || 1.5),
+          useCORS: true
+        });
+        if (receipt) return composeReceiptCanvas(cardCanvas);
+        return cardCanvas;
+      }
+
+      async function downloadSelectedCard() {
+        const canvas = await renderSelectedCard();
+        if (!canvas) return;
+        await showDownloadQr(canvas);
+      }
+
+      async function showShareQr() {
+        const canvas = lastDownloadCanvas || await renderSelectedCard();
+        if (!canvas) return;
+        await showDownloadQr(canvas);
+      }
+
+      async function shareSelectedCard() {
+        const canvas = lastDownloadCanvas || await renderSelectedCard();
+        if (!canvas) return;
+        canvas.toBlob(async blob => {
+          const file = new File([blob], "nomu-daily-fortune.png", { type: "image/png" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: "NOMU Daily Fortune",
+              text: fortuneText.textContent,
+              files: [file]
+            });
+            restartExperience();
+          } else {
+            downloadSelectedCard();
+          }
+        }, "image/png");
+      }
+
+      async function printSelectedCard() {
+        const canvas = await renderSelectedCard({ receipt: true });
+        if (!canvas) return;
+        const imageUrl = canvas.toDataURL("image/png");
+        const frame = document.createElement("iframe");
+        frame.style.position = "fixed";
+        frame.style.right = "0";
+        frame.style.bottom = "0";
+        frame.style.width = "0";
+        frame.style.height = "0";
+        frame.style.border = "0";
+        document.body.appendChild(frame);
+        const printDoc = frame.contentDocument;
+        const style = printDoc.createElement("style");
+        style.textContent = "@page{size:80mm 80mm;margin:0}html,body{width:80mm;margin:0;padding:0;background:#fff}img{width:80mm;height:auto;display:block;page-break-inside:avoid}";
+        const image = printDoc.createElement("img");
+        image.src = imageUrl;
+        image.alt = "NOMU Daily Fortune";
+        printDoc.documentElement.style.margin = "0";
+        printDoc.documentElement.style.padding = "0";
+        printDoc.body.style.margin = "0";
+        printDoc.body.style.padding = "0";
+        printDoc.body.style.background = "#fff";
+        printDoc.head.appendChild(style);
+        image.style.width = "80mm";
+        image.style.height = "auto";
+        image.style.display = "block";
+        printDoc.title = "NOMU Daily Fortune";
+        printDoc.body.appendChild(image);
+        image.onload = () => {
+          frame.contentWindow.focus();
+          frame.contentWindow.print();
+          setTimeout(() => {
+            frame.remove();
+            restartExperience();
+          }, 700);
+        };
+      }
+
+      function burst(x, y) {
+        for (let i = 0; i < 24; i++) {
+          const dot = document.createElement("i");
+          dot.className = "trail";
+          dot.style.left = `${x}px`;
+          dot.style.top = `${y}px`;
+          trails.appendChild(dot);
+          gsap.to(dot, {
+            x: rand(-180, 180),
+            y: rand(-180, 180),
+            scale: rand(.25, 1.4),
+            opacity: 0,
+            duration: rand(.55, 1.2),
+            ease: "power3.out",
+            onComplete: () => dot.remove()
+          });
+        }
+      }
+
+      function updateHover() {
+        if (!canPlayCards()) {
+          if (hovered) hovered.el.classList.remove("hovered");
+          hovered = null;
+          return;
+        }
+        if (!pointer.active || selected || dragged) return;
+        let nearest = null;
+        let minDist = Infinity;
+        const hitRadius = Math.max((cards[0]?.el.offsetWidth || 120) * .72, 82);
+        cards.forEach(card => {
+          const centerX = card.x + card.el.offsetWidth / 2;
+          const centerY = card.y + card.el.offsetHeight / 2;
+          const dist = Math.hypot(pointer.x - centerX, pointer.y - centerY);
+          if (dist < hitRadius && dist < minDist) {
+            nearest = card;
+            minDist = dist;
+          }
+        });
+        if (nearest !== hovered) {
+          if (hovered) hovered.el.classList.remove("hovered");
+          hovered = nearest;
+          if (hovered) {
+            hovered.el.classList.add("hovered");
+            soundHooks.hover();
+          }
+        }
+      }
+
+      function setPointer(x, y, active = true) {
+        pointer.x = x;
+        pointer.y = y;
+        pointer.active = active;
+        cursor.style.opacity = active ? ".95" : ".42";
+        gsap.to(cursor, { x, y, duration: .09, ease: "power2.out", overwrite: true });
+
+        const now = performance.now();
+        if (active && now - lastTrail > 42) {
+          lastTrail = now;
+          const dot = document.createElement("i");
+          dot.className = "trail";
+          dot.style.left = `${x}px`;
+          dot.style.top = `${y}px`;
+          trails.appendChild(dot);
+          gsap.to(dot, {
+            scale: 0,
+            opacity: 0,
+            duration: .65,
+            ease: "power2.out",
+            onComplete: () => dot.remove()
+          });
+        }
+      }
+
+      function setPinch(isPinching) {
+        if (pointer.pinching === isPinching) return;
+        pointer.pinching = isPinching;
+        cursor.classList.toggle("pinching", isPinching);
+        if (isPinching && hovered && !dragged) {
+          beginDrag(hovered, pointer.x, pointer.y);
+        } else if (!isPinching && dragged) {
+          releaseCard();
+        }
+      }
+
+      function resizeCanvas() {
+        const rect = video.getBoundingClientRect();
+        handCanvas.width = Math.max(1, Math.round(rect.width));
+        handCanvas.height = Math.max(1, Math.round(rect.height));
+      }
+
+      async function initHands() {
+        if (!window.Hands || !window.Camera) {
+          showToast("ต้องเชื่อมต่ออินเทอร์เน็ตเพื่อโหลด MediaPipe จาก CDN");
+          status.textContent = "MediaPipe ยังไม่พร้อม";
+          return;
+        }
+
+        hands = new Hands({
+          locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+        hands.setOptions({
+          maxNumHands: 1,
+          modelComplexity: 0,
+          minDetectionConfidence: .6,
+          minTrackingConfidence: .6
+        });
+        hands.onResults(onHandResults);
+
+        camera = new Camera(video, {
+          onFrame: async () => {
+            const now = performance.now();
+            if (!hands || isSendingHandFrame || now - lastHandFrame < 90) return;
+            lastHandFrame = now;
+            isSendingHandFrame = true;
+            try {
+              await hands.send({ image: video });
+            } finally {
+              isSendingHandFrame = false;
+            }
+          },
+          width: 480,
+          height: 360
+        });
+        await camera.start();
+        soundHooks.camera();
+        status.textContent = "กล้องพร้อมแล้ว บีบนิ้วโป้งกับนิ้วชี้เพื่อเลือกไพ่";
+        startCamera.disabled = true;
+        resizeCanvas();
+        updateCameraOrientationClass();
+        return true;
+      }
+
+      function onHandResults(results) {
+        updateCameraPreviewAspect();
+        resizeCanvas();
+        handCtx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+        handCtx.save();
+        if (shouldRotateCameraFrame()) {
+          handCtx.translate(handCanvas.width, 0);
+          handCtx.rotate(Math.PI / 2);
+          handCtx.scale(1, -1);
+          handCtx.drawImage(results.image, 0, 0, handCanvas.height, handCanvas.width);
+        } else {
+          handCtx.scale(-1, 1);
+          handCtx.translate(-handCanvas.width, 0);
+          handCtx.drawImage(results.image, 0, 0, handCanvas.width, handCanvas.height);
+        }
+        if (results.multiHandLandmarks && results.multiHandLandmarks.length) {
+          const landmarks = results.multiHandLandmarks[0];
+          const openFingerCount = countOpenFingers(landmarks);
+          openHandFrames = openFingerCount >= 5 ? openHandFrames + 1 : 0;
+          if (photoReady && !handGateReady && openHandFrames >= 8) {
+            startReadyCountdown();
+          } else if (photoReady && !handGateReady && !readyCountdownTimer) {
+            showReadyGuide("แบมือ 5 นิ้ว", "ให้เห็นมือครบในกล้อง เพื่อเริ่มนับถอยหลัง");
+          }
+          if (window.drawConnectors && window.HAND_CONNECTIONS) {
+            drawConnectors(handCtx, landmarks, HAND_CONNECTIONS, { color: "rgba(248, 212, 119, .8)", lineWidth: 2 });
+            drawLandmarks(handCtx, landmarks, { color: "rgba(103, 232, 249, .85)", lineWidth: 1, radius: 2 });
+          }
+          const indexTip = landmarks[8];
+          const thumbTip = landmarks[4];
+          const mappedX = (1 - indexTip.x) * innerWidth;
+          const mappedY = indexTip.y * innerHeight;
+          const pinchDistance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+          if (!canPlayCards()) {
+            setPointer(mappedX, mappedY, false);
+            setPinch(false);
+            updateCameraStatus();
+            handCtx.restore();
+            return;
+          }
+          setPointer(mappedX, mappedY, true);
+          updateHover();
+          if (dragged) dragCard(mappedX, mappedY);
+          setPinch(pinchDistance < .055);
+          status.textContent = pointer.pinching ? "กำลังถือไพ่ ปล่อยนิ้วเพื่อเปิดคำทำนาย" : "เลื่อนนิ้วชี้เหนือไพ่ แล้วบีบเพื่อหยิบ";
+        } else {
+          openHandFrames = 0;
+          if (photoReady && !handGateReady) {
+            clearReadyCountdown();
+            showReadyGuide("แบมือ 5 นิ้ว", "ให้เห็นมือครบในกล้อง เพื่อเริ่มนับถอยหลัง");
+          }
+          setPointer(pointer.x, pointer.y, false);
+          setPinch(false);
+          if (hovered) hovered.el.classList.remove("hovered");
+          hovered = null;
+          status.textContent = "ยกมือให้อยู่ในกล้องเพื่อเริ่มอ่านไพ่";
+        }
+        handCtx.restore();
+      }
+
+      function resetDeck() {
+        clearResultResetTimer();
+        hideReadingPanel();
+        selected = null;
+        pendingReveal = null;
+        dragged = null;
+        hovered = null;
+        hasPreparedHandDeal = false;
+        currentReward = "";
+        lastDownloadCanvas = null;
+        rewardBadge.textContent = "";
+        rewardBadge.hidden = true;
+        rewardBadge.classList.remove("visible");
+        clearRoundPhoto();
+        reading.classList.remove("visible", "card-only");
+        choiceModal.classList.remove("visible");
+        photoConfirm.classList.remove("visible");
+        document.body.classList.remove("photo-confirming");
+        gsap.set(choiceModal, { opacity: 0, visibility: "hidden" });
+        cards.forEach(card => {
+          card.revealed = false;
+          card.el.classList.remove("dragging", "hovered", "selected-card");
+          clearCardImage(card);
+          gsap.killTweensOf([card.el, card.shell, card.glow]);
+          gsap.set(card.el, { opacity: 1, scale: 1, filter: "none", zIndex: "" });
+          gsap.set(card.shell, { rotationY: 0 });
+          gsap.set(card.glow, { opacity: 0, scale: 1 });
+        });
+        layoutCards(true, true);
+        soundHooks.shuffle();
+      }
+
+      function restartExperience() {
+        clearResultResetTimer();
+        resetDeck();
+        storageRemove("nomuCurrentOrder");
+        orderInput.value = "";
+        orderBadge.textContent = "Order: -";
+        hideOverlay(photoPrompt);
+        hideOverlay(photoConfirm);
+        hideOverlay(choiceModal);
+        hideOverlay(adminLogin);
+        hideOverlay(adminPanel);
+        hideOverlay(downloadQrModal);
+        showOverlay(orderGate);
+        setTimeout(() => orderInput.focus(), 80);
+      }
+
+      function captureFromCamera(targetCard = null, storePlayerPhoto = false, options = {}) {
+        if (!video.videoWidth) {
+          showToast("เปิดกล้องก่อน แล้วค่อยถ่ายภาพสำหรับหน้าไพ่");
+          return false;
+        }
+        pendingSourceCanvas = makeNormalizedVideoFrame();
+        photoEdit = { y: 0, rotation: 0 };
+        const src = renderEditedPhotoDataUrl(.92);
+        if (storePlayerPhoto) {
+          playerPhoto = src;
+          updatePhotoPreview();
+        }
+        if (!options.previewOnly) {
+          const target = targetCard || cards[imageQueueIndex % cards.length];
+          setCardImage(target, src);
+          if (!targetCard) imageQueueIndex++;
+        }
+        showToast(storePlayerPhoto ? "บันทึกรูปคู่แก้วสำหรับการ์ดแล้ว" : "ถ่ายภาพจากกล้องและใส่บนการ์ดแล้ว");
+        return true;
+      }
+
+      function requestIntroPhoto() {
+        photoEdit = { y: 0, rotation: 0 };
+        const src = grabCameraFrame();
+        if (!src) {
+          showToast("กล้องยังไม่พร้อม ลองถ่ายอีกครั้ง");
+          return false;
+        }
+        showPhotoConfirmation(src);
+        return true;
+      }
+
+      function startPhotoCountdown() {
+        if (countdownTimer) clearInterval(countdownTimer);
+        if (!camera || !video.videoWidth) {
+          showToast("เปิดกล้องให้พร้อมก่อนถ่ายรูป");
+          showOverlay(photoPrompt);
+          return;
+        }
+        hideOverlay(photoConfirm);
+        showSelfieVideo();
+        showOverlay(photoPrompt);
+        startIntroPhoto.disabled = true;
+        photoCountdown.textContent = "5";
+        let count = 5;
+        countdownTimer = setInterval(() => {
+          count--;
+          if (count > 0) {
+            photoCountdown.textContent = String(count);
+            return;
+          }
+          clearInterval(countdownTimer);
+          countdownTimer = null;
+          startIntroPhoto.disabled = false;
+          photoCountdown.textContent = "ถ่ายแล้ว";
+          hideOverlay(photoPrompt);
+          if (!requestIntroPhoto()) {
+            showSelfieVideo();
+            photoCountdown.textContent = "กดพร้อมถ่าย";
+            showOverlay(photoPrompt);
+          }
+        }, 1000);
+      }
+
+      function waitForCameraFrame(timeout = 4000) {
+        const started = performance.now();
+        return new Promise(resolve => {
+          const tick = () => {
+            if (video.videoWidth && video.videoHeight) {
+              resolve(true);
+              return;
+            }
+            if (performance.now() - started >= timeout) {
+              resolve(false);
+              return;
+            }
+            requestAnimationFrame(tick);
+          };
+          tick();
+        });
+      }
+
+      function wireEvents() {
+        function handleEnterOrder() {
+          const order = orderInput.value.trim();
+          if (!order) {
+            showToast("กรอกเลขใบเสร็จหรือรหัส order ก่อนเริ่มเล่น");
+            orderInput.focus();
+            return;
+          }
+          storageSet("nomuCurrentOrder", order);
+          orderBadge.textContent = `Order: ${order}`;
+          hideOverlay(orderGate);
+          showOverlay(photoPrompt);
+        }
+
+        async function enterExperience({ wantPhoto = false } = {}) {
+          hideOverlay(photoPrompt);
+          showToast(wantPhoto ? "กำลังเปิดกล้อง เตรียมถ่ายรูปคู่แก้วได้เลย" : "กำลังเปิดกล้องเพื่อเลือกการ์ด");
+          if (!camera) {
+            try {
+              const cameraReady = await initHands();
+              if (!cameraReady) {
+                showOverlay(photoPrompt);
+                return;
+              }
+            } catch (error) {
+              console.error(error);
+              showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
+              showOverlay(photoPrompt);
+              return;
+            }
+          }
+          const frameReady = await waitForCameraFrame();
+          if (!frameReady) {
+            showOverlay(photoPrompt);
+            return;
+          }
+          startPhotoCountdown();
+        }
+
+        enterOrder.addEventListener("click", handleEnterOrder);
+        orderInput.addEventListener("keydown", event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            handleEnterOrder();
+          }
+        });
+        howToPlayBtn.addEventListener("click", () => showOverlay(howToPlay));
+        openHowFromGate.addEventListener("click", () => showOverlay(howToPlay));
+        closeHowToPlay.addEventListener("click", () => hideOverlay(howToPlay));
+        startIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: true }));
+        skipIntroPhoto.addEventListener("click", () => enterExperience({ wantPhoto: false }));
+        retakeIntroPhoto.addEventListener("click", () => startPhotoCountdown());
+        photoEditButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            const action = button.dataset.photoEdit;
+            if (action === "up") photoEdit.y = Math.max(-.45, photoEdit.y - .08);
+            if (action === "down") photoEdit.y = Math.min(.45, photoEdit.y + .08);
+            if (action === "reset") photoEdit.y = 0;
+            if (action === "rotateLeft") photoEdit.rotation = (photoEdit.rotation || 0) - 1;
+            if (action === "rotateRight") photoEdit.rotation = (photoEdit.rotation || 0) + 1;
+            if (action === "rotateReset") photoEdit.rotation = 0;
+            drawPhotoEditorPreview();
+          });
+        });
+        confirmIntroPhoto.addEventListener("click", confirmRoundPhoto);
+        addAdminMessage.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          addAdminListItem(adminMessageItems, "ข้อความบนการ์ด");
+        });
+        addAdminReward.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          addRewardRuleItem(adminRewardItems);
+        });
+        adminEntryBtn.addEventListener("click", () => {
+          adminUser.value = "";
+          adminPass.value = "";
+          hideOverlay(orderGate);
+          showOverlay(adminLogin);
+          adminUser.focus();
+        });
+        closeAdminLogin.addEventListener("click", () => {
+          hideOverlay(adminLogin);
+          showOverlay(orderGate);
+        });
+        enterAdmin.addEventListener("click", () => {
+          if (adminUser.value.trim() !== "admin" || adminPass.value !== "1234") {
+            showToast("User หรือรหัสผ่านไม่ถูกต้อง");
+            adminPass.focus();
+            return;
+          }
+          hideOverlay(adminLogin);
+          syncAdminFields();
+          showOverlay(adminPanel);
+        });
+        adminPass.addEventListener("keydown", event => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            enterAdmin.click();
+          }
+        });
+        closeAdmin.addEventListener("click", () => {
+          hideOverlay(adminPanel);
+          showOverlay(orderGate);
+        });
+        saveAdmin.addEventListener("click", async () => {
+          const nextMessages = getAdminList(adminMessageItems);
+          const nextRewardRules = getRewardRules(adminRewardItems);
+          if (!nextMessages.length) {
+            showToast("ต้องมีข้อความบนการ์ดอย่างน้อย 1 ข้อ");
+            return;
+          }
+          if (!nextRewardRules.length) {
+            showToast("ต้องมีโปรโมชั่นอย่างน้อย 1 รายการ หรือกดลบแล้วเพิ่มใหม่");
+            return;
+          }
+          const uploadEndpoint = adminUploadEndpoint.value.trim();
+          const supabaseUrl = adminSupabaseUrl.value.trim();
+          const supabaseAnonKey = adminSupabaseAnonKey.value.trim();
+          const supabaseBucket = adminSupabaseBucket.value.trim() || "nomu-cards";
+          const supabaseTable = adminSupabaseTable.value.trim() || "nomu_card_logs";
+          const messageSaved = storageSet("nomuFortuneMessages", nextMessages.join("\n"));
+          const endpointSaved = storageSet("nomuCardUploadEndpoint", uploadEndpoint);
+          const supabaseSaved = [
+            storageSet("nomuSupabaseUrl", supabaseUrl),
+            storageSet("nomuSupabaseAnonKey", supabaseAnonKey),
+            storageSet("nomuSupabaseBucket", supabaseBucket),
+            storageSet("nomuSupabaseTable", supabaseTable)
+          ].every(Boolean);
+          rewardRules = nextRewardRules;
+          rewards = rewardRules.map(rule => rule.text);
+          const rewardSaved = saveRewardRules();
+          storageRemove("nomuRewardEnabled");
+          storageRemove("nomuRewardEvery");
+          storageRemove("nomuRewardCounter");
+          let savedRewardRules = [];
+          try {
+            savedRewardRules = JSON.parse(storageGet("nomuRewardRules") || "[]");
+          } catch (error) {
+            savedRewardRules = [];
+          }
+          const verified = savedRewardRules.length === nextRewardRules.length
+            && savedRewardRules.every((rule, index) => rule.text === nextRewardRules[index].text && rule.enabled === nextRewardRules[index].enabled && Number(rule.every) === Number(nextRewardRules[index].every))
+            && storageGet("nomuCardUploadEndpoint") === uploadEndpoint
+            && storageGet("nomuSupabaseUrl") === supabaseUrl
+            && storageGet("nomuSupabaseAnonKey") === supabaseAnonKey
+            && storageGet("nomuSupabaseBucket") === supabaseBucket
+            && storageGet("nomuSupabaseTable") === supabaseTable;
+          loadSettings();
+          hideOverlay(adminPanel);
+          showOverlay(orderGate);
+          resetDeck();
+          createDeck();
+          showToast(messageSaved && rewardSaved && endpointSaved && supabaseSaved && verified
+            ? "บันทึกข้อความและโปรโมชั่นแล้ว"
+            : "บันทึกชั่วคราวแล้ว แต่ browser อาจบล็อก localStorage");
+        });
+        resetAdmin.addEventListener("click", () => {
+          storageRemove("nomuFortuneMessages");
+          storageRemove("nomuFortuneRewards");
+          storageRemove("nomuRewardEnabled");
+          storageRemove("nomuRewardEvery");
+          storageRemove("nomuRewardCounter");
+          storageRemove("nomuRewardRules");
+          storageRemove("nomuCardUploadEndpoint");
+          storageRemove("nomuSupabaseUrl");
+          storageRemove("nomuSupabaseAnonKey");
+          storageRemove("nomuSupabaseBucket");
+          storageRemove("nomuSupabaseTable");
+          storageRemove("nomuCardBackImage");
+          storageRemove("nomuCardFrontImage");
+          loadSettings();
+          syncAdminFields();
+          resetDeck();
+          createDeck();
+          showToast("คืนค่า default แล้ว");
+        });
+        loadUsage.addEventListener("click", () => {
+          loadUsageRows().catch(error => {
+            console.error(error);
+            usageSummary.textContent = "ดึงข้อมูลไม่สำเร็จ";
+            showToast("ดึงข้อมูลไม่สำเร็จ");
+          });
+        });
+        exportUsage.addEventListener("click", exportUsageCsv);
+        downloadCard.addEventListener("click", downloadSelectedCard);
+        shareCard.addEventListener("click", showShareQr);
+        printCard.addEventListener("click", printSelectedCard);
+        homeCard.addEventListener("click", restartExperience);
+        qrShareCard.addEventListener("click", showShareQr);
+        qrPrintCard.addEventListener("click", printSelectedCard);
+        qrCloseHome.addEventListener("click", restartExperience);
+        startCamera.addEventListener("click", () => initHands().catch(error => {
+          console.error(error);
+          showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
+          status.textContent = "กล้องยังไม่พร้อม";
+        }));
+        captureCard.addEventListener("click", () => startPhotoCountdown());
+        attachPhoto.addEventListener("click", async () => {
+          if (!pendingReveal) return;
+          if (!video.videoWidth && !camera) {
+            try {
+              await initHands();
+            } catch (error) {
+              console.error(error);
+              showToast("เปิดกล้องไม่สำเร็จ ตรวจสอบสิทธิ์กล้องในเบราว์เซอร์");
+              return;
+            }
+          }
+          if (captureFromCamera(pendingReveal)) finalizeReveal({ attach: true });
+        });
+        skipPhoto.addEventListener("click", () => finalizeReveal({ attach: false }));
+        shuffleCards.addEventListener("click", resetDeck);
+        deckUpload.addEventListener("change", event => assignImages(event.target.files));
+        singleUpload.addEventListener("change", event => assignImages(event.target.files, true));
+        window.addEventListener("resize", () => {
+          seedAtmosphere();
+          if (!selected) layoutCards(true);
+          resizeCanvas();
+          updateCameraOrientationClass();
+        });
+        stage.addEventListener("pointermove", event => {
+          if (pointer.active) return;
+          setPointer(event.clientX, event.clientY, true);
+          updateHover();
+        });
+        stage.addEventListener("pointerleave", () => {
+          if (pointer.active) return;
+          setPointer(pointer.x, pointer.y, false);
+          if (hovered) hovered.el.classList.remove("hovered");
+          hovered = null;
+        });
+        window.addEventListener("afterprint", restartExperience);
+      }
+
+      function boot() {
+        if (showScannedCardFromHash()) return;
+        loadSettings();
+        syncAdminFields();
+        const savedOrder = storageGet("nomuCurrentOrder") || "";
+        if (savedOrder) {
+          orderInput.value = savedOrder;
+          orderBadge.textContent = `Order: ${savedOrder}`;
+        }
+        seedAtmosphere();
+        createDeck();
+        wireEvents();
+        setPointer(innerWidth / 2, innerHeight / 2, false);
+        gsap.to(loading, { opacity: 0, visibility: "hidden", duration: .55, delay: .45 });
+        showToast("คุณสามารถเลือกรูปที่ออกแบบเอง หรือถ่ายจากกล้องเพื่อใส่หน้าไพ่ได้");
+      }
+
+      function showScannedCardFromHash() {
+        const prefix = "#nomu-card=";
+        if (!location.hash.startsWith(prefix)) return false;
+        const imageDataUrl = decodeURIComponent(location.hash.slice(prefix.length));
+        document.body.innerHTML = `
+          <main class="scan-download-page">
+            <section class="scan-download-card">
+              <h1>NOMU Daily Fortune</h1>
+              <p>รูปนี้มาจาก QR สำหรับดาวน์โหลดลงเครื่อง</p>
+              <img src="${imageDataUrl}" alt="NOMU Daily Fortune card">
+              <a href="${imageDataUrl}" download="nomu-daily-fortune-qr.jpg">ดาวน์โหลดรูป</a>
+            </section>
+          </main>
+        `;
+        return true;
+      }
+
+      window.addEventListener("load", boot);
+    })();
+  </script>
+</body>
+</html>
