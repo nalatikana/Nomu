@@ -602,7 +602,7 @@
 
     .overlay {
       position: absolute;
-      z-index: 12;
+      z-index: 42;
       inset: 0;
       display: grid;
       place-items: center;
@@ -624,18 +624,18 @@
     }
 
     .overlay.active-modal {
-      z-index: 18;
+      z-index: 48;
     }
 
     #adminLogin,
     #adminPanel,
     #downloadQrModal {
-      z-index: 24;
+      z-index: 54;
     }
 
     #photoConfirm {
       position: fixed;
-      z-index: 22;
+      z-index: 54;
       place-items: start center;
       padding-top: max(18px, env(safe-area-inset-top));
       padding-bottom: max(18px, env(safe-area-inset-bottom));
@@ -1746,6 +1746,7 @@
           </div>
         </div>
         <div class="panel-actions">
+          <button id="qrOpenAdmin" type="button">ตั้งค่า Admin</button>
           <button id="qrShareCard" type="button">Share</button>
           <button id="qrPrintCard" type="button">Print</button>
           <button id="qrCloseHome" type="button">กลับหน้าแรก</button>
@@ -2067,6 +2068,7 @@
       const downloadQrCanvas = document.getElementById("downloadQrCanvas");
       const downloadQrImage = document.getElementById("downloadQrImage");
       const qrStatus = document.getElementById("qrStatus");
+      const qrOpenAdmin = document.getElementById("qrOpenAdmin");
       const qrShareCard = document.getElementById("qrShareCard");
       const qrPrintCard = document.getElementById("qrPrintCard");
       const qrCloseHome = document.getElementById("qrCloseHome");
@@ -3969,6 +3971,12 @@
         homeCard.addEventListener("click", restartExperience);
         qrShareCard.addEventListener("click", showShareQr);
         qrPrintCard.addEventListener("click", printSelectedCard);
+        qrOpenAdmin.addEventListener("click", () => {
+          hideOverlay(downloadQrModal);
+          adminPass.value = "";
+          showOverlay(adminLogin);
+          setTimeout(() => adminUser.focus(), 80);
+        });
         qrCloseHome.addEventListener("click", restartExperience);
         startCamera.addEventListener("click", () => initHands().catch(error => {
           console.error(error);
