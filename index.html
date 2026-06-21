@@ -1387,14 +1387,22 @@
 
     .scan-download-card img {
       width: 100%;
-      max-height: 68dvh;
+      max-height: 72dvh;
       object-fit: contain;
       border: 1px solid rgba(215, 247, 170, .2);
       border-radius: 8px;
       background: #101410;
     }
 
-    .scan-download-card a {
+    .scan-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .scan-download-card a,
+    .scan-download-card button {
       display: inline-grid;
       place-items: center;
       min-height: 46px;
@@ -1403,8 +1411,10 @@
       border-radius: 8px;
       background: linear-gradient(135deg, rgba(234, 209, 138, .22), rgba(28, 48, 22, .82));
       color: #fffdf4;
+      font: 800 15px/1 "Kanit", sans-serif;
       font-weight: 800;
       text-decoration: none;
+      cursor: pointer;
     }
 
     .loader {
@@ -3427,7 +3437,16 @@ using (bucket_id = 'nomu-cards');`;
           return configuredBuilder({ file, canvas, order: storageGet("nomuCurrentOrder") || "" });
         }
 
-        return uploadCardImage(canvas);
+        const cardUrl = await uploadCardImage(canvas);
+        return cardUrl ? makeCardDownloadPageUrl(cardUrl) : "";
+      }
+
+      function makeCardDownloadPageUrl(cardUrl) {
+        const url = new URL(location.href);
+        url.search = "";
+        url.hash = "";
+        url.searchParams.set("nomuCard", cardUrl);
+        return url.toString();
       }
 
       async function showDownloadQr(canvas) {
@@ -3457,7 +3476,7 @@ using (bucket_id = 'nomu-cards');`;
           } else {
             showQrImageFallback(qrTarget);
           }
-          qrStatus.textContent = "สแกนเพื่อเปิดลิงก์รูปการ์ดนี้บนอีกเครื่อง";
+          qrStatus.textContent = "สแกนเพื่อเปิดหน้า Download รูปการ์ดเต็มใบ";
         } catch (error) {
           console.error(error);
           downloadQrCanvas.style.display = "none";
@@ -4154,19 +4173,72 @@ using (bucket_id = 'nomu-cards');`;
       }
 
       function showScannedCardFromHash() {
-        const prefix = "#nomu-card=";
-        if (!location.hash.startsWith(prefix)) return false;
-        const imageDataUrl = decodeURIComponent(location.hash.slice(prefix.length));
-        document.body.innerHTML = `
-          <main class="scan-download-page">
-            <section class="scan-download-card">
-              <h1>NOMU Daily Fortune</h1>
-              <p>รูปนี้มาจาก QR สำหรับดาวน์โหลดลงเครื่อง</p>
-              <img src="${imageDataUrl}" alt="NOMU Daily Fortune card">
-              <a href="${imageDataUrl}" download="nomu-daily-fortune-qr.jpg">ดาวน์โหลดรูป</a>
-            </section>
-          </main>
-        `;
+        const params = new URLSearchParams(location.search);
+        const imageUrl = params.get("nomuCard") || (location.hash.startsWith("#nomu-card=")
+          ? decodeURIComponent(location.hash.slice("#nomu-card=".length))
+          : "");
+        if (!imageUrl) return false;
+
+        document.body.innerHTML = "";
+        const page = document.createElement("main");
+        page.className = "scan-download-page";
+        const card = document.createElement("section");
+        card.className = "scan-download-card";
+        const title = document.createElement("h1");
+        title.textContent = "NOMU Daily Fortune";
+        const note = document.createElement("p");
+        note.textContent = "ดาวน์โหลดรูปการ์ดเต็มใบ แล้วนำไปแชร์ลง IG ได้เลย";
+        const image = document.createElement("img");
+        image.src = imageUrl;
+        image.alt = "NOMU Daily Fortune card";
+        const actions = document.createElement("div");
+        actions.className = "scan-actions";
+        const download = document.createElement("button");
+        download.type = "button";
+        download.textContent = "Download";
+        const share = document.createElement("button");
+        share.type = "button";
+        share.textContent = "Share";
+        const open = document.createElement("a");
+        open.href = imageUrl;
+        open.target = "_blank";
+        open.rel = "noopener";
+        open.textContent = "เปิดรูปเต็ม";
+        actions.append(download, share, open);
+        card.append(title, note, image, actions);
+        page.appendChild(card);
+        document.body.appendChild(page);
+
+        download.addEventListener("click", async () => {
+          try {
+            const response = await fetch(imageUrl, { mode: "cors" });
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = "nomu-daily-fortune.png";
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+          } catch (error) {
+            window.open(imageUrl, "_blank", "noopener");
+          }
+        });
+
+        share.addEventListener("click", async () => {
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: "NOMU Daily Fortune",
+                text: "NOMU Daily Fortune",
+                url: imageUrl
+              });
+              return;
+            } catch (error) {
+              if (error?.name === "AbortError") return;
+            }
+          }
+          window.open(imageUrl, "_blank", "noopener");
+        });
         return true;
       }
 
