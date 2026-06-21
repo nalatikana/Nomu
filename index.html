@@ -822,6 +822,10 @@
       font-weight: 500;
     }
 
+    .admin-wide-field {
+      grid-column: 1 / -1;
+    }
+
     .admin-field > span {
       color: var(--matcha-soft);
     }
@@ -1094,6 +1098,7 @@
     }
 
     .reading.card-only {
+      z-index: 30;
       width: auto;
       min-width: min(380px, calc(100vw - 24px));
       padding: 8px;
@@ -1165,7 +1170,7 @@
 
     .reading.card-only .reading-actions {
       position: fixed;
-      z-index: 18;
+      z-index: 31;
       pointer-events: auto;
       left: 50%;
       bottom: max(14px, env(safe-area-inset-bottom));
@@ -1759,6 +1764,11 @@
             <div class="admin-list" id="adminRewardItems"></div>
             <button id="addAdminReward" type="button">เพิ่มรางวัล</button>
           </div>
+          <div class="admin-field admin-wide-field">
+            <span>QR upload endpoint</span>
+            <input id="adminUploadEndpoint" type="url" inputmode="url" placeholder="https://your-server.example/upload">
+            <p class="admin-note">Endpoint ต้องรับ POST multipart/form-data ชื่อ file และส่ง URL รูปกลับมาเป็น text หรือ JSON เช่น {"url":"https://..."}</p>
+          </div>
           <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
         </div>
         <div class="panel-actions">
@@ -1928,6 +1938,7 @@
       const resetAdmin = document.getElementById("resetAdmin");
       const adminMessages = document.getElementById("adminMessages");
       const adminRewards = document.getElementById("adminRewards");
+      const adminUploadEndpoint = document.getElementById("adminUploadEndpoint");
       const adminMessageItems = document.getElementById("adminMessageItems");
       const adminRewardItems = document.getElementById("adminRewardItems");
       const addAdminMessage = document.getElementById("addAdminMessage");
@@ -2478,6 +2489,7 @@
       function syncAdminFields() {
         adminMessages.value = fortunes.join("\n");
         adminRewards.value = rewards.join("\n");
+        adminUploadEndpoint.value = storageGet("nomuCardUploadEndpoint") || "";
         renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
         renderRewardList(adminRewardItems, rewardRules);
         const enabledCount = rewardRules.filter(rule => rule.enabled).length;
@@ -2784,8 +2796,8 @@
         const isTablet = innerWidth >= 820 && innerWidth <= 1366;
         const isWideTablet = isTablet && innerWidth > innerHeight;
         const topClearance = isCompact ? 175 : 118;
-        const readingHeight = reading.offsetHeight || 60;
-        const bottomClearance = readingHeight + (isCompact ? 26 : isWideTablet ? 34 : isTablet ? 36 : 44);
+        const actionBarHeight = Math.max(reading.offsetHeight || 0, isCompact ? 92 : 86);
+        const bottomClearance = actionBarHeight + (isCompact ? 26 : isWideTablet ? 34 : isTablet ? 36 : 44);
         const availableHeight = Math.max(260, innerHeight - topClearance - bottomClearance);
         const targetCenterY = topClearance + availableHeight / 2;
         const fitScale = Math.min(
@@ -2971,6 +2983,9 @@
       async function uploadCardImage(canvas) {
         const endpoint = window.NOMU_CARD_UPLOAD_ENDPOINT || storageGet("nomuCardUploadEndpoint") || "";
         if (!endpoint) return "";
+        if (!/^https?:\/\//i.test(endpoint)) {
+          throw new Error("Upload endpoint must start with http:// or https://");
+        }
         const file = await canvasToFile(canvas);
         if (!file) return "";
         const form = new FormData();
@@ -2998,6 +3013,9 @@
 
       async function showDownloadQr(canvas) {
         lastDownloadCanvas = canvas;
+        qrPreview.hidden = false;
+        qrPreview.onload = () => { qrPreview.hidden = false; };
+        qrPreview.onerror = () => { qrPreview.hidden = true; };
         qrPreview.src = makeQrImageDataUrl(canvas, 520, .72);
         qrStatus.textContent = "กำลังเตรียม QR...";
         const ctx = downloadQrCanvas.getContext("2d");
@@ -3574,7 +3592,9 @@
             showToast("ต้องมีโปรโมชั่นอย่างน้อย 1 รายการ หรือกดลบแล้วเพิ่มใหม่");
             return;
           }
+          const uploadEndpoint = adminUploadEndpoint.value.trim();
           const messageSaved = storageSet("nomuFortuneMessages", nextMessages.join("\n"));
+          const endpointSaved = storageSet("nomuCardUploadEndpoint", uploadEndpoint);
           rewardRules = nextRewardRules;
           rewards = rewardRules.map(rule => rule.text);
           const rewardSaved = saveRewardRules();
@@ -3588,13 +3608,14 @@
             savedRewardRules = [];
           }
           const verified = savedRewardRules.length === nextRewardRules.length
-            && savedRewardRules.every((rule, index) => rule.text === nextRewardRules[index].text && rule.enabled === nextRewardRules[index].enabled && Number(rule.every) === Number(nextRewardRules[index].every));
+            && savedRewardRules.every((rule, index) => rule.text === nextRewardRules[index].text && rule.enabled === nextRewardRules[index].enabled && Number(rule.every) === Number(nextRewardRules[index].every))
+            && storageGet("nomuCardUploadEndpoint") === uploadEndpoint;
           loadSettings();
           hideOverlay(adminPanel);
           showOverlay(orderGate);
           resetDeck();
           createDeck();
-          showToast(messageSaved && rewardSaved && verified
+          showToast(messageSaved && rewardSaved && endpointSaved && verified
             ? "บันทึกข้อความและโปรโมชั่นแล้ว"
             : "บันทึกชั่วคราวแล้ว แต่ browser อาจบล็อก localStorage");
         });
@@ -3605,6 +3626,7 @@
           storageRemove("nomuRewardEvery");
           storageRemove("nomuRewardCounter");
           storageRemove("nomuRewardRules");
+          storageRemove("nomuCardUploadEndpoint");
           storageRemove("nomuCardBackImage");
           storageRemove("nomuCardFrontImage");
           loadSettings();
