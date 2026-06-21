@@ -1832,12 +1832,16 @@
           <div class="admin-field admin-wide-field">
             <span>Supabase สำหรับ QR และประวัติการเล่น</span>
             <div class="admin-subgrid">
-              <input id="adminSupabaseUrl" type="url" inputmode="url" placeholder="Supabase project URL">
+              <input id="adminSupabaseUrl" type="url" inputmode="url" placeholder="https://xxxx.supabase.co">
               <input id="adminSupabaseAnonKey" type="password" autocomplete="off" placeholder="Supabase anon key">
               <input id="adminSupabaseBucket" type="text" placeholder="Storage bucket เช่น nomu-cards">
               <input id="adminSupabaseTable" type="text" placeholder="Table เช่น nomu_card_logs">
             </div>
             <p class="admin-note">แนะนำใช้ bucket แบบ public สำหรับให้ QR เปิดรูปได้ทันที และเปิด RLS เฉพาะ insert/select ที่จำเป็นสำหรับ anon key</p>
+            <p class="admin-note">ช่อง Project URL ต้องเป็นลิงก์จาก Supabase เช่น https://abcd.supabase.co ส่วนไฟล์ supabase-setup.sql ให้เอาไปรันใน Supabase SQL Editor ไม่ต้องใส่ในช่องนี้</p>
+            <div class="admin-tools">
+              <button id="copySupabaseSql" type="button">คัดลอก SQL Setup</button>
+            </div>
           </div>
           <div class="admin-field admin-wide-field">
             <span>ประวัติการใช้งาน</span>
@@ -1967,6 +1971,50 @@
         "Rare Card"
       ];
 
+      const supabaseSetupSql = `create table if not exists public.nomu_card_logs (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  order_no text,
+  card_url text not null,
+  fortune_text text,
+  reward_text text,
+  user_agent text
+);
+
+alter table public.nomu_card_logs enable row level security;
+
+drop policy if exists "nomu anon insert logs" on public.nomu_card_logs;
+create policy "nomu anon insert logs"
+on public.nomu_card_logs
+for insert
+to anon
+with check (true);
+
+drop policy if exists "nomu anon read logs" on public.nomu_card_logs;
+create policy "nomu anon read logs"
+on public.nomu_card_logs
+for select
+to anon
+using (true);
+
+insert into storage.buckets (id, name, public)
+values ('nomu-cards', 'nomu-cards', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "nomu anon upload cards" on storage.objects;
+create policy "nomu anon upload cards"
+on storage.objects
+for insert
+to anon
+with check (bucket_id = 'nomu-cards');
+
+drop policy if exists "nomu public read cards" on storage.objects;
+create policy "nomu public read cards"
+on storage.objects
+for select
+to anon
+using (bucket_id = 'nomu-cards');`;
+
       let fortunes = [];
       let rewards = [];
       let rewardRules = [];
@@ -2044,6 +2092,7 @@
       const addAdminReward = document.getElementById("addAdminReward");
       const loadUsage = document.getElementById("loadUsage");
       const exportUsage = document.getElementById("exportUsage");
+      const copySupabaseSql = document.getElementById("copySupabaseSql");
       const usageSummary = document.getElementById("usageSummary");
       const usageTableBody = document.getElementById("usageTableBody");
       const adminRewardCounterText = document.getElementById("adminRewardCounterText");
@@ -2437,6 +2486,16 @@
         return Boolean(config.url && config.anonKey && config.bucket && config.table);
       }
 
+      function isValidSupabaseUrl(value) {
+        if (!value) return true;
+        try {
+          const url = new URL(value);
+          return url.protocol === "https:" && url.hostname.endsWith(".supabase.co");
+        } catch (error) {
+          return false;
+        }
+      }
+
       function getSupabaseClient(config = getSupabaseConfig()) {
         if (!hasSupabaseConfig(config)) return null;
         if (!window.supabase?.createClient) {
@@ -2552,6 +2611,22 @@
         link.download = `nomu-usage-${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      async function copySupabaseSetupSql() {
+        try {
+          await navigator.clipboard.writeText(supabaseSetupSql);
+          showToast("คัดลอก SQL Setup แล้ว");
+        } catch (error) {
+          const blob = new Blob([supabaseSetupSql], { type: "text/sql;charset=utf-8" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "supabase-setup.sql";
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("ดาวน์โหลดไฟล์ SQL Setup แล้ว");
+        }
       }
 
       function csvCell(value) {
@@ -2743,7 +2818,14 @@
         adminMessages.value = fortunes.join("\n");
         adminRewards.value = rewards.join("\n");
         adminUploadEndpoint.value = storageGet("nomuCardUploadEndpoint") || "";
-        adminSupabaseUrl.value = storageGet("nomuSupabaseUrl") || "";
+        const savedSupabaseUrl = storageGet("nomuSupabaseUrl") || "";
+        if (savedSupabaseUrl && !isValidSupabaseUrl(savedSupabaseUrl)) {
+          storageRemove("nomuSupabaseUrl");
+          adminSupabaseUrl.value = "";
+          showToast("ล้าง Supabase URL ที่ไม่ถูกต้องแล้ว");
+        } else {
+          adminSupabaseUrl.value = savedSupabaseUrl;
+        }
         adminSupabaseAnonKey.value = storageGet("nomuSupabaseAnonKey") || "";
         adminSupabaseBucket.value = storageGet("nomuSupabaseBucket") || "nomu-cards";
         adminSupabaseTable.value = storageGet("nomuSupabaseTable") || "nomu_card_logs";
@@ -3901,6 +3983,16 @@
           const supabaseAnonKey = adminSupabaseAnonKey.value.trim();
           const supabaseBucket = adminSupabaseBucket.value.trim() || "nomu-cards";
           const supabaseTable = adminSupabaseTable.value.trim() || "nomu_card_logs";
+          if (supabaseUrl && !isValidSupabaseUrl(supabaseUrl)) {
+            showToast("Supabase URL ต้องเป็น https://xxxx.supabase.co");
+            adminSupabaseUrl.focus();
+            return;
+          }
+          if (supabaseUrl && !supabaseAnonKey) {
+            showToast("ใส่ Supabase anon key ด้วย");
+            adminSupabaseAnonKey.focus();
+            return;
+          }
           const messageSaved = storageSet("nomuFortuneMessages", nextMessages.join("\n"));
           const endpointSaved = storageSet("nomuCardUploadEndpoint", uploadEndpoint);
           const supabaseSaved = [
@@ -3965,6 +4057,7 @@
           });
         });
         exportUsage.addEventListener("click", exportUsageCsv);
+        copySupabaseSql.addEventListener("click", copySupabaseSetupSql);
         downloadCard.addEventListener("click", downloadSelectedCard);
         shareCard.addEventListener("click", showShareQr);
         printCard.addEventListener("click", printSelectedCard);
