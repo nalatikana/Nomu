@@ -1877,6 +1877,14 @@
               </table>
             </div>
           </div>
+          <div class="admin-field admin-wide-field">
+            <span>การพิมพ์หน้างาน</span>
+            <label class="admin-toggle">
+              <input id="adminAutoPrint" type="checkbox">
+              <span>เปิดหน้า Print อัตโนมัติหลังเปิดการ์ดทุกครั้ง</span>
+            </label>
+            <p class="admin-note">Browser จะเปิดหน้าต่าง Print ให้เอง แต่ยังต้องกดยืนยันพิมพ์ในเครื่อง/ไดรเวอร์</p>
+          </div>
           <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
         </div>
         <div class="panel-actions">
@@ -2096,6 +2104,7 @@ using (bucket_id = 'nomu-cards');`;
       const adminSupabaseAnonKey = document.getElementById("adminSupabaseAnonKey");
       const adminSupabaseBucket = document.getElementById("adminSupabaseBucket");
       const adminSupabaseTable = document.getElementById("adminSupabaseTable");
+      const adminAutoPrint = document.getElementById("adminAutoPrint");
       const adminMessageItems = document.getElementById("adminMessageItems");
       const adminRewardItems = document.getElementById("adminRewardItems");
       const addAdminMessage = document.getElementById("addAdminMessage");
@@ -2856,6 +2865,7 @@ using (bucket_id = 'nomu-cards');`;
         adminSupabaseAnonKey.value = storageGet("nomuSupabaseAnonKey") || "";
         adminSupabaseBucket.value = storageGet("nomuSupabaseBucket") || "nomu-cards";
         adminSupabaseTable.value = storageGet("nomuSupabaseTable") || "nomu_card_logs";
+        adminAutoPrint.checked = storageGet("nomuAutoPrint") === "true";
         renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
         renderRewardList(adminRewardItems, rewardRules);
         const enabledCount = rewardRules.filter(rule => rule.enabled).length;
@@ -3211,7 +3221,12 @@ using (bucket_id = 'nomu-cards');`;
             duration: .88,
             ease: "back.inOut(1.7)"
           }, "-=.08")
-          .to(card.glow, { opacity: 0, scale: 2.4, duration: .7, ease: "power2.out" }, "-=.2");
+          .to(card.glow, { opacity: 0, scale: 2.4, duration: .7, ease: "power2.out" }, "-=.2")
+          .call(() => {
+            if (storageGet("nomuAutoPrint") === "true") {
+              setTimeout(() => printSelectedCard(), 450);
+            }
+          });
       }
 
       function drawCenteredLines(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
@@ -3446,6 +3461,9 @@ using (bucket_id = 'nomu-cards');`;
         url.search = "";
         url.hash = "";
         url.searchParams.set("nomuCard", cardUrl);
+        const order = storageGet("nomuCurrentOrder") || "";
+        if (order) url.searchParams.set("order", order);
+        if (currentReward) url.searchParams.set("reward", currentReward);
         return url.toString();
       }
 
@@ -4019,6 +4037,7 @@ using (bucket_id = 'nomu-cards');`;
           const supabaseAnonKey = adminSupabaseAnonKey.value.trim();
           const supabaseBucket = adminSupabaseBucket.value.trim() || "nomu-cards";
           const supabaseTable = adminSupabaseTable.value.trim() || "nomu_card_logs";
+          const autoPrint = adminAutoPrint.checked;
           if (supabaseUrl && !isValidSupabaseUrl(supabaseUrl)) {
             showToast("Supabase URL ต้องเป็น https://xxxx.supabase.co");
             adminSupabaseUrl.focus();
@@ -4040,7 +4059,8 @@ using (bucket_id = 'nomu-cards');`;
             storageSet("nomuSupabaseUrl", supabaseUrl),
             storageSet("nomuSupabaseAnonKey", supabaseAnonKey),
             storageSet("nomuSupabaseBucket", supabaseBucket),
-            storageSet("nomuSupabaseTable", supabaseTable)
+            storageSet("nomuSupabaseTable", supabaseTable),
+            storageSet("nomuAutoPrint", autoPrint ? "true" : "false")
           ].every(Boolean);
           rewardRules = nextRewardRules;
           rewards = rewardRules.map(rule => rule.text);
@@ -4060,7 +4080,8 @@ using (bucket_id = 'nomu-cards');`;
             && storageGet("nomuSupabaseUrl") === supabaseUrl
             && storageGet("nomuSupabaseAnonKey") === supabaseAnonKey
             && storageGet("nomuSupabaseBucket") === supabaseBucket
-            && storageGet("nomuSupabaseTable") === supabaseTable;
+            && storageGet("nomuSupabaseTable") === supabaseTable
+            && storageGet("nomuAutoPrint") === (autoPrint ? "true" : "false");
           loadSettings();
           hideOverlay(adminPanel);
           showOverlay(orderGate);
@@ -4082,6 +4103,7 @@ using (bucket_id = 'nomu-cards');`;
           storageRemove("nomuSupabaseAnonKey");
           storageRemove("nomuSupabaseBucket");
           storageRemove("nomuSupabaseTable");
+          storageRemove("nomuAutoPrint");
           storageRemove("nomuCardBackImage");
           storageRemove("nomuCardFrontImage");
           loadSettings();
@@ -4178,6 +4200,8 @@ using (bucket_id = 'nomu-cards');`;
           ? decodeURIComponent(location.hash.slice("#nomu-card=".length))
           : "");
         if (!imageUrl) return false;
+        const scannedOrder = params.get("order") || "";
+        const scannedReward = params.get("reward") || "";
 
         document.body.innerHTML = "";
         const page = document.createElement("main");
@@ -4199,12 +4223,15 @@ using (bucket_id = 'nomu-cards');`;
         const share = document.createElement("button");
         share.type = "button";
         share.textContent = "Share";
+        const print = document.createElement("button");
+        print.type = "button";
+        print.textContent = "Print";
         const open = document.createElement("a");
         open.href = imageUrl;
         open.target = "_blank";
         open.rel = "noopener";
         open.textContent = "เปิดรูปเต็ม";
-        actions.append(download, share, open);
+        actions.append(download, share, print, open);
         card.append(title, note, image, actions);
         page.appendChild(card);
         document.body.appendChild(page);
@@ -4239,7 +4266,72 @@ using (bucket_id = 'nomu-cards');`;
           }
           window.open(imageUrl, "_blank", "noopener");
         });
+
+        print.addEventListener("click", () => {
+          printScannedCard(imageUrl, scannedReward, scannedOrder);
+        });
         return true;
+      }
+
+      function printScannedCard(imageUrl, reward = "", order = "") {
+        const frame = document.createElement("iframe");
+        frame.style.position = "fixed";
+        frame.style.right = "0";
+        frame.style.bottom = "0";
+        frame.style.width = "0";
+        frame.style.height = "0";
+        frame.style.border = "0";
+        document.body.appendChild(frame);
+        const doc = frame.contentDocument;
+        const style = doc.createElement("style");
+        style.textContent = `
+          @page{size:80mm 80mm;margin:0}
+          html,body{width:80mm;margin:0;padding:0;background:#fff;font-family:Arial,sans-serif}
+          .print-page{width:80mm;height:80mm;margin:0;padding:0;display:grid;place-items:center;page-break-after:always;break-after:page;background:#fff;color:#111;box-sizing:border-box}
+          .print-page:last-child{page-break-after:auto;break-after:auto}
+          .print-card{width:80mm;height:80mm;object-fit:contain;display:block}
+          .ticket{padding:5mm;text-align:center;border:1.1mm solid #111}
+          .brand{font:900 18px Arial,sans-serif;letter-spacing:.5px}
+          .order{margin-top:4mm;font:700 12px Arial,sans-serif}
+          .reward{margin-top:12mm;font:900 24px Arial,sans-serif;line-height:1.15}
+          .hint{margin-top:12mm;font:700 10px Arial,sans-serif}
+          .tagline{margin-top:5mm;font:800 9px Arial,sans-serif}
+        `;
+        doc.head.appendChild(style);
+        doc.title = "NOMU Daily Fortune";
+
+        const cardPage = doc.createElement("section");
+        cardPage.className = "print-page";
+        const img = doc.createElement("img");
+        img.className = "print-card";
+        img.src = imageUrl;
+        img.alt = "NOMU Daily Fortune card";
+        cardPage.appendChild(img);
+        doc.body.appendChild(cardPage);
+
+        if (reward) {
+          const ticket = doc.createElement("section");
+          ticket.className = "print-page ticket";
+          ticket.innerHTML = `
+            <div>
+              <div class="brand">NOMU MATCHA</div>
+              <div class="order">Order: ${escapeHtml(order || "-")}</div>
+              <div class="reward">${escapeHtml(reward)}</div>
+              <div class="hint">แสดงตั๋วนี้ให้พนักงานก่อนชำระเงิน</div>
+              <div class="tagline">MATCHA FOR THE MODERN MIND.</div>
+            </div>
+          `;
+          doc.body.appendChild(ticket);
+        }
+
+        const cleanup = () => frame.remove();
+        frame.contentWindow.onafterprint = cleanup;
+        img.onload = () => {
+          setTimeout(() => {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+          }, 120);
+        };
       }
 
       window.addEventListener("load", boot);
