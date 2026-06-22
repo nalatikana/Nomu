@@ -3533,6 +3533,18 @@ using (bucket_id = 'nomu-cards');`;
         await showDownloadQr(canvas);
       }
 
+      function printStyle80mm(extra = "") {
+        return `
+          @page{size:80mm 80mm;margin:0}
+          *{box-sizing:border-box}
+          html,body{width:80mm;height:auto;margin:0!important;padding:0!important;background:#fff;overflow:hidden;font-family:Arial,sans-serif}
+          .print-page{position:relative;width:80mm;height:80mm;margin:0!important;padding:0!important;display:block;background:#fff;color:#111;page-break-after:always;break-after:page;overflow:hidden}
+          .print-page:last-child{page-break-after:auto;break-after:auto}
+          .print-page img,.print-card{position:absolute;left:0;top:0;width:80mm;height:80mm;object-fit:contain;display:block}
+          ${extra}
+        `;
+      }
+
       async function shareSelectedCard() {
         const canvas = lastDownloadCanvas || await renderSelectedCard();
         if (!canvas) return;
@@ -3565,7 +3577,7 @@ using (bucket_id = 'nomu-cards');`;
         document.body.appendChild(frame);
         const printDoc = frame.contentDocument;
         const style = printDoc.createElement("style");
-        style.textContent = "@page{size:80mm 80mm;margin:0}html,body{width:80mm;margin:0;padding:0;background:#fff}.print-page{width:80mm;height:80mm;margin:0;padding:0;display:block;page-break-after:always;break-after:page}.print-page:last-child{page-break-after:auto;break-after:auto}.print-page img{width:80mm;height:80mm;object-fit:contain;display:block}";
+        style.textContent = printStyle80mm();
         printDoc.documentElement.style.margin = "0";
         printDoc.documentElement.style.padding = "0";
         printDoc.body.style.margin = "0";
@@ -4284,19 +4296,14 @@ using (bucket_id = 'nomu-cards');`;
         document.body.appendChild(frame);
         const doc = frame.contentDocument;
         const style = doc.createElement("style");
-        style.textContent = `
-          @page{size:80mm 80mm;margin:0}
-          html,body{width:80mm;margin:0;padding:0;background:#fff;font-family:Arial,sans-serif}
-          .print-page{width:80mm;height:80mm;margin:0;padding:0;display:grid;place-items:center;page-break-after:always;break-after:page;background:#fff;color:#111;box-sizing:border-box}
-          .print-page:last-child{page-break-after:auto;break-after:auto}
-          .print-card{width:80mm;height:80mm;object-fit:contain;display:block}
+        style.textContent = printStyle80mm(`
           .ticket{padding:5mm;text-align:center;border:1.1mm solid #111}
           .brand{font:900 18px Arial,sans-serif;letter-spacing:.5px}
           .order{margin-top:4mm;font:700 12px Arial,sans-serif}
           .reward{margin-top:12mm;font:900 24px Arial,sans-serif;line-height:1.15}
           .hint{margin-top:12mm;font:700 10px Arial,sans-serif}
           .tagline{margin-top:5mm;font:800 9px Arial,sans-serif}
-        `;
+        `);
         doc.head.appendChild(style);
         doc.title = "NOMU Daily Fortune";
 
