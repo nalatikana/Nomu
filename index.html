@@ -3537,12 +3537,95 @@ using (bucket_id = 'nomu-cards');`;
         return `
           @page{size:80mm 80mm;margin:0}
           *{box-sizing:border-box}
-          html,body{width:80mm;height:auto;margin:0!important;padding:0!important;background:#fff;overflow:hidden;font-family:Arial,sans-serif}
-          .print-page{position:relative;width:80mm;height:80mm;margin:0!important;padding:0!important;display:block;background:#fff;color:#111;page-break-after:always;break-after:page;overflow:hidden}
+          html,body{width:80mm!important;min-width:80mm!important;height:auto;margin:0!important;padding:0!important;background:#fff;overflow:visible;font-family:Arial,sans-serif}
+          body{position:absolute;left:0;top:0}
+          .print-page{position:relative;width:80mm!important;height:80mm!important;margin:0!important;padding:0!important;display:block;background:#fff;color:#111;page-break-after:always;break-after:page;overflow:hidden}
           .print-page:last-child{page-break-after:auto;break-after:auto}
-          .print-page img,.print-card{position:absolute;left:0;top:0;width:80mm;height:80mm;object-fit:contain;display:block}
+          .print-page img,.print-card{position:absolute;left:0;top:0;width:80mm!important;height:80mm!important;object-fit:contain;display:block}
+          @media screen{
+            html,body{background:#f3f3f3}
+            .print-page{outline:1px solid #ddd}
+          }
+          @media print{
+            html,body{width:80mm!important;min-width:80mm!important;margin:0!important;padding:0!important;background:#fff}
+            body{position:absolute!important;left:0!important;top:0!important}
+          }
           ${extra}
         `;
+      }
+
+      function openPrintWindow() {
+        const printWindow = window.open("", "_blank", "popup,width=420,height=720");
+        if (!printWindow) {
+          showToast("Browser บล็อกหน้า Print กรุณาอนุญาต pop-up แล้วลองอีกครั้ง");
+          return null;
+        }
+        printWindow.document.open();
+        printWindow.document.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>NOMU Daily Fortune</title>
+              <style>
+                body{margin:0;background:#fff;font-family:Arial,sans-serif}
+                .preparing{width:80mm;height:80mm;display:grid;place-items:center;color:#111;font:700 14px Arial,sans-serif}
+              </style>
+            </head>
+            <body><div class="preparing">Preparing print...</div></body>
+          </html>
+        `);
+        printWindow.document.close();
+        return printWindow;
+      }
+
+      function printWindowHtml(printWindow, content, extraStyle = "", afterPrint = null) {
+        if (!printWindow || printWindow.closed) return;
+        printWindow.document.open();
+        printWindow.document.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width,initial-scale=1">
+              <title>NOMU Daily Fortune</title>
+              <style>${printStyle80mm(extraStyle)}</style>
+            </head>
+            <body>${content}</body>
+          </html>
+        `);
+        printWindow.document.close();
+
+        const images = Array.from(printWindow.document.images);
+        const imageReady = images.map(image => {
+          if (image.complete) return Promise.resolve();
+          return new Promise(resolve => {
+            image.onload = resolve;
+            image.onerror = resolve;
+          });
+        });
+
+        printWindow.onafterprint = () => {
+          try { printWindow.close(); } catch (error) {}
+          if (typeof afterPrint === "function") afterPrint();
+        };
+
+        Promise.all(imageReady).then(() => {
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+          }, 200);
+        });
+      }
+
+      function printImagePages(printWindow, imageUrls, afterPrint = null) {
+        const content = imageUrls.map((src, index) => `
+          <section class="print-page">
+            <img class="print-card" src="${escapeAttr(src)}" alt="NOMU print page ${index + 1}">
+          </section>
+        `).join("");
+        printWindowHtml(printWindow, content, "", afterPrint);
       }
 
       async function shareSelectedCard() {
@@ -3564,45 +3647,15 @@ using (bucket_id = 'nomu-cards');`;
       }
 
       async function printSelectedCard() {
+        const printWindow = openPrintWindow();
+        if (!printWindow) return;
         const cardCanvas = await renderSelectedCard();
-        if (!cardCanvas) return;
+        if (!cardCanvas) {
+          printWindow.close();
+          return;
+        }
         const pages = composePrintPages(cardCanvas);
-        const frame = document.createElement("iframe");
-        frame.style.position = "fixed";
-        frame.style.right = "0";
-        frame.style.bottom = "0";
-        frame.style.width = "0";
-        frame.style.height = "0";
-        frame.style.border = "0";
-        document.body.appendChild(frame);
-        const printDoc = frame.contentDocument;
-        const style = printDoc.createElement("style");
-        style.textContent = printStyle80mm();
-        printDoc.documentElement.style.margin = "0";
-        printDoc.documentElement.style.padding = "0";
-        printDoc.body.style.margin = "0";
-        printDoc.body.style.padding = "0";
-        printDoc.body.style.background = "#fff";
-        printDoc.head.appendChild(style);
-        printDoc.title = "NOMU Daily Fortune";
-        pages.forEach((pageCanvas, index) => {
-          const page = printDoc.createElement("section");
-          page.className = "print-page";
-          const image = printDoc.createElement("img");
-          image.src = pageCanvas.toDataURL("image/png");
-          image.alt = index === 0 ? "NOMU Daily Fortune card" : "NOMU reward ticket";
-          page.appendChild(image);
-          printDoc.body.appendChild(page);
-        });
-        const cleanup = () => {
-          frame.remove();
-          restartExperience();
-        };
-        frame.contentWindow.onafterprint = cleanup;
-        setTimeout(() => {
-          frame.contentWindow.focus();
-          frame.contentWindow.print();
-        }, 120);
+        printImagePages(printWindow, pages.map(pageCanvas => pageCanvas.toDataURL("image/png")), restartExperience);
       }
 
       function burst(x, y) {
@@ -4286,6 +4339,34 @@ using (bucket_id = 'nomu-cards');`;
       }
 
       function printScannedCard(imageUrl, reward = "", order = "") {
+        const printWindow = openPrintWindow();
+        if (!printWindow) return;
+        const ticketStyle = `
+          .ticket{padding:5mm;text-align:center;border:1.1mm solid #111}
+          .brand{font:900 18px Arial,sans-serif;letter-spacing:.5px}
+          .order{margin-top:4mm;font:700 12px Arial,sans-serif}
+          .reward{margin-top:12mm;font:900 24px Arial,sans-serif;line-height:1.15}
+          .hint{margin-top:12mm;font:700 10px Arial,sans-serif}
+          .tagline{margin-top:5mm;font:800 9px Arial,sans-serif}
+        `;
+        let content = `
+          <section class="print-page">
+            <img class="print-card" src="${escapeAttr(imageUrl)}" alt="NOMU Daily Fortune card">
+          </section>
+        `;
+        if (reward) {
+          content += `
+            <section class="print-page ticket">
+              <div class="brand">NOMU MATCHA</div>
+              <div class="order">Order: ${escapeHtml(order || "-")}</div>
+              <div class="reward">${escapeHtml(reward)}</div>
+              <div class="hint">แสดงตั๋วนี้ให้พนักงานก่อนชำระเงิน</div>
+              <div class="tagline">MATCHA FOR THE MODERN MIND.</div>
+            </section>
+          `;
+        }
+        printWindowHtml(printWindow, content, ticketStyle);
+        return;
         const frame = document.createElement("iframe");
         frame.style.position = "fixed";
         frame.style.right = "0";
