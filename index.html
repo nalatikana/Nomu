@@ -1880,10 +1880,17 @@
           <div class="admin-field admin-wide-field">
             <span>การพิมพ์หน้างาน</span>
             <label class="admin-toggle">
-              <input id="adminAutoPrint" type="checkbox">
-              <span>เปิดหน้า Print อัตโนมัติหลังเปิดการ์ดทุกครั้ง</span>
+              <span>ปลายทางการพิมพ์</span>
+              <select id="adminPrintMode">
+                <option value="browser">Browser Print</option>
+                <option value="bridge">Windows Print Bridge ผ่าน Supabase</option>
+              </select>
             </label>
-            <p class="admin-note">Browser จะเปิดหน้าต่าง Print ให้เอง แต่ยังต้องกดยืนยันพิมพ์ในเครื่อง/ไดรเวอร์</p>
+            <label class="admin-toggle">
+              <input id="adminAutoPrint" type="checkbox">
+              <span>พิมพ์อัตโนมัติหลังเปิดการ์ดทุกครั้ง</span>
+            </label>
+            <p class="admin-note">โหมด Print Bridge ต้องตั้ง Supabase และให้ Windows Bridge เชื่อม Supabase ด้วย service role key ก่อนใช้งาน</p>
           </div>
           <p class="admin-note" id="adminRewardCounterText">ตัวนับรางวัล: -</p>
         </div>
@@ -2015,6 +2022,25 @@ for select
 to anon
 using (true);
 
+create table if not exists public.nomu_print_jobs (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  printed_at timestamptz,
+  status text not null default 'pending' check (status in ('pending', 'printing', 'printed', 'failed')),
+  order_no text,
+  image_data_url text not null,
+  error_message text
+);
+
+alter table public.nomu_print_jobs enable row level security;
+
+drop policy if exists "nomu anon queue print jobs" on public.nomu_print_jobs;
+create policy "nomu anon queue print jobs"
+on public.nomu_print_jobs
+for insert
+to anon
+with check (status = 'pending');
+
 insert into storage.buckets (id, name, public)
 values ('nomu-cards', 'nomu-cards', true)
 on conflict (id) do update set public = true;
@@ -2083,6 +2109,7 @@ using (bucket_id = 'nomu-cards');`;
       const orderInput = document.getElementById("orderInput");
       const enterOrder = document.getElementById("enterOrder");
       const orderBadge = document.getElementById("orderBadge");
+      const adminPrintMode = document.getElementById("adminPrintMode");
       const howToPlay = document.getElementById("howToPlay");
       const howToPlayBtn = document.getElementById("howToPlayBtn");
       const openHowFromGate = document.getElementById("openHowFromGate");
@@ -2865,6 +2892,7 @@ using (bucket_id = 'nomu-cards');`;
         adminSupabaseAnonKey.value = storageGet("nomuSupabaseAnonKey") || "";
         adminSupabaseBucket.value = storageGet("nomuSupabaseBucket") || "nomu-cards";
         adminSupabaseTable.value = storageGet("nomuSupabaseTable") || "nomu_card_logs";
+        adminPrintMode.value = storageGet("nomuPrintMode") || "browser";
         adminAutoPrint.checked = storageGet("nomuAutoPrint") === "true";
         renderAdminList(adminMessageItems, fortunes, "ข้อความบนการ์ด");
         renderRewardList(adminRewardItems, rewardRules);
@@ -3647,6 +3675,7 @@ using (bucket_id = 'nomu-cards');`;
       }
 
       async function printSelectedCard() {
+        if (storageGet("nomuPrintMode") === "bridge") return queueSelectedCardForPrint();
         const printWindow = openPrintWindow();
         if (!printWindow) return;
         const cardCanvas = await renderSelectedCard();
@@ -3656,6 +3685,31 @@ using (bucket_id = 'nomu-cards');`;
         }
         const pages = composePrintPages(cardCanvas);
         printImagePages(printWindow, pages.map(pageCanvas => pageCanvas.toDataURL("image/png")), restartExperience);
+      }
+
+      async function queueSelectedCardForPrint() {
+        const config = getSupabaseConfig();
+        if (!hasSupabaseConfig(config)) {
+          showToast("ตั้งค่า Supabase ก่อนใช้ Windows Print Bridge");
+          return;
+        }
+        try {
+          const cardCanvas = await renderSelectedCard();
+          if (!cardCanvas) return;
+          const receiptCanvas = composeReceiptCanvas(cardCanvas);
+          const client = getSupabaseClient(config);
+          const { error } = await client.from("nomu_print_jobs").insert({
+            order_no: storageGet("nomuCurrentOrder") || "",
+            image_data_url: receiptCanvas.toDataURL("image/png"),
+            status: "pending"
+          });
+          if (error) throw error;
+          showToast("ส่งงานไป Windows Print Bridge แล้ว");
+          restartExperience();
+        } catch (error) {
+          console.error("queue print failed", error);
+          showToast(`ส่งงานพิมพ์ไม่สำเร็จ: ${error?.message || "ตรวจสอบ Supabase และ Print Bridge"}`);
+        }
       }
 
       function burst(x, y) {
@@ -4103,6 +4157,7 @@ using (bucket_id = 'nomu-cards');`;
           const supabaseBucket = adminSupabaseBucket.value.trim() || "nomu-cards";
           const supabaseTable = adminSupabaseTable.value.trim() || "nomu_card_logs";
           const autoPrint = adminAutoPrint.checked;
+          const printMode = adminPrintMode.value;
           if (supabaseUrl && !isValidSupabaseUrl(supabaseUrl)) {
             showToast("Supabase URL ต้องเป็น https://xxxx.supabase.co");
             adminSupabaseUrl.focus();
@@ -4125,6 +4180,7 @@ using (bucket_id = 'nomu-cards');`;
             storageSet("nomuSupabaseAnonKey", supabaseAnonKey),
             storageSet("nomuSupabaseBucket", supabaseBucket),
             storageSet("nomuSupabaseTable", supabaseTable),
+            storageSet("nomuPrintMode", printMode),
             storageSet("nomuAutoPrint", autoPrint ? "true" : "false")
           ].every(Boolean);
           rewardRules = nextRewardRules;
@@ -4146,6 +4202,7 @@ using (bucket_id = 'nomu-cards');`;
             && storageGet("nomuSupabaseAnonKey") === supabaseAnonKey
             && storageGet("nomuSupabaseBucket") === supabaseBucket
             && storageGet("nomuSupabaseTable") === supabaseTable
+            && storageGet("nomuPrintMode") === printMode
             && storageGet("nomuAutoPrint") === (autoPrint ? "true" : "false");
           loadSettings();
           hideOverlay(adminPanel);
@@ -4168,6 +4225,7 @@ using (bucket_id = 'nomu-cards');`;
           storageRemove("nomuSupabaseAnonKey");
           storageRemove("nomuSupabaseBucket");
           storageRemove("nomuSupabaseTable");
+          storageRemove("nomuPrintMode");
           storageRemove("nomuAutoPrint");
           storageRemove("nomuCardBackImage");
           storageRemove("nomuCardFrontImage");
