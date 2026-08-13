@@ -2614,6 +2614,22 @@ using (bucket_id = 'nomu-cards');`;
         return cardUrl;
       }
 
+      async function uploadPrintJobToSupabase(canvas, config) {
+        const client = getSupabaseClient(config);
+        const file = await canvasToFile(canvas, "nomu-print-job.png");
+        if (!file) throw new Error("สร้างไฟล์ใบเสร็จไม่สำเร็จ");
+        const order = safeFilePart(storageGet("nomuCurrentOrder") || "daily");
+        const day = new Date().toISOString().slice(0, 10);
+        const path = `print-jobs/${day}/${order}-${Date.now()}.png`;
+        const { error: uploadError } = await client.storage
+          .from(config.bucket)
+          .upload(path, file, { contentType: "image/png", upsert: false });
+        if (uploadError) throw uploadError;
+        const { data } = client.storage.from(config.bucket).getPublicUrl(path);
+        if (!data?.publicUrl) throw new Error("สร้างลิงก์ไฟล์ใบเสร็จไม่สำเร็จ");
+        return data.publicUrl;
+      }
+
       function renderUsageRows(rows = []) {
         latestUsageRows = rows;
         usageSummary.textContent = rows.length
@@ -3781,10 +3797,12 @@ using (bucket_id = 'nomu-cards');`;
           printCard.disabled = true;
           const receiptCanvas = composeBridgeReceiptCanvas();
           const client = getSupabaseClient(config);
+          printStatus.textContent = "กำลังอัปโหลดงานพิมพ์…";
+          const imageUrl = await uploadPrintJobToSupabase(receiptCanvas, config);
           printStatus.textContent = "กำลังส่งงานไป Windows Print Bridge…";
           const { error } = await client.from("nomu_print_jobs").insert({
             order_no: storageGet("nomuCurrentOrder") || "",
-            image_data_url: receiptCanvas.toDataURL("image/png"),
+            image_data_url: imageUrl,
             status: "pending"
           });
           if (error) throw error;
