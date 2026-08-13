@@ -1335,6 +1335,14 @@
       box-shadow: 0 0 28px rgba(168, 85, 247, .28);
     }
 
+    .print-status {
+      min-height: 1.4em;
+      margin: 10px 0 0;
+      color: var(--gold-soft);
+      font-size: 13px;
+      text-align: center;
+    }
+
     .loading {
       position: absolute;
       inset: 0;
@@ -1700,6 +1708,7 @@
         <button id="printCard" type="button">Print</button>
         <button id="homeCard" type="button">กลับหน้าแรก</button>
       </div>
+      <p class="print-status" id="printStatus" role="status" aria-live="polite"></p>
     </section>
 
     <section class="choice-modal" id="choiceModal" aria-live="polite" aria-label="photo attachment choice">
@@ -2110,6 +2119,7 @@ using (bucket_id = 'nomu-cards');`;
       const enterOrder = document.getElementById("enterOrder");
       const orderBadge = document.getElementById("orderBadge");
       const adminPrintMode = document.getElementById("adminPrintMode");
+      const printStatus = document.getElementById("printStatus");
       const howToPlay = document.getElementById("howToPlay");
       const howToPlayBtn = document.getElementById("howToPlayBtn");
       const openHowFromGate = document.getElementById("openHowFromGate");
@@ -3531,7 +3541,7 @@ using (bucket_id = 'nomu-cards');`;
         }
       }
 
-      async function renderSelectedCard({ receipt = false } = {}) {
+      async function renderSelectedCard({ receipt = false, scale = Math.min(3, window.devicePixelRatio || 1.5) } = {}) {
         if (!selected) {
           showToast("เลือกการ์ดก่อน");
           return null;
@@ -3542,7 +3552,7 @@ using (bucket_id = 'nomu-cards');`;
         }
         const cardCanvas = await html2canvas(selected.el, {
           backgroundColor: null,
-          scale: Math.min(3, window.devicePixelRatio || 1.5),
+          scale,
           useCORS: true
         });
         if (receipt) return composeReceiptCanvas(cardCanvas);
@@ -3694,22 +3704,28 @@ using (bucket_id = 'nomu-cards');`;
           return;
         }
         try {
-          const cardCanvas = await renderSelectedCard();
+          printStatus.textContent = "กำลังเตรียมงานพิมพ์…";
+          printCard.disabled = true;
+          const cardCanvas = await renderSelectedCard({ scale: 1 });
           if (!cardCanvas) return;
           const receiptCanvas = composeReceiptCanvas(cardCanvas);
           const client = getSupabaseClient(config);
+          printStatus.textContent = "กำลังส่งงานไป Windows Print Bridge…";
           const { error } = await client.from("nomu_print_jobs").insert({
             order_no: storageGet("nomuCurrentOrder") || "",
             image_data_url: receiptCanvas.toDataURL("image/png"),
             status: "pending"
           });
           if (error) throw error;
+          printStatus.textContent = "ส่งงานไป Windows Print Bridge แล้ว";
           showToast("ส่งงานไป Windows Print Bridge แล้ว");
           restartExperience();
         } catch (error) {
           console.error("queue print failed", error);
-          showToast(`ส่งงานพิมพ์ไม่สำเร็จ: ${error?.message || "ตรวจสอบ Supabase และ Print Bridge"}`);
-        }
+          const message = `ส่งงานพิมพ์ไม่สำเร็จ: ${error?.message || "ตรวจสอบ Supabase และ Print Bridge"}`;
+          printStatus.textContent = message;
+          showToast(message);
+        } finally { printCard.disabled = false; }
       }
 
       function burst(x, y) {
