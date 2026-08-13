@@ -3306,11 +3306,16 @@ using (bucket_id = 'nomu-cards');`;
 
       function composeReceiptCanvas(cardCanvas) {
         const width = 576;
-        const section = 576;
-        const pad = 22;
+        const pad = 16;
         const gap = 18;
         const hasTicket = Boolean(currentReward);
-        const height = hasTicket ? section * 2 + gap : section;
+        // Preserve the card's portrait ratio and use nearly the complete
+        // 80 mm paper width, rather than shrinking it into a square section.
+        const cardWidth = width - pad * 2;
+        const cardHeight = Math.round(cardCanvas.height * cardWidth / cardCanvas.width);
+        const cardSectionHeight = cardHeight + pad * 2;
+        const ticketSectionHeight = 576;
+        const height = hasTicket ? cardSectionHeight + gap + ticketSectionHeight : cardSectionHeight;
         const receiptCanvas = document.createElement("canvas");
         receiptCanvas.width = width;
         receiptCanvas.height = height;
@@ -3319,25 +3324,21 @@ using (bucket_id = 'nomu-cards');`;
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, width, height);
 
-        const cardBox = section - pad * 2;
-        const cardScale = Math.min(cardBox / cardCanvas.width, cardBox / cardCanvas.height);
-        const cardWidth = Math.round(cardCanvas.width * cardScale);
-        const cardHeight = Math.round(cardCanvas.height * cardScale);
         const cardX = Math.round((width - cardWidth) / 2);
-        const cardY = Math.round((section - cardHeight) / 2);
+        const cardY = pad;
         ctx.drawImage(cardCanvas, cardX, cardY, cardWidth, cardHeight);
 
         if (!hasTicket) return receiptCanvas;
 
-        const ticketY = section + gap;
-        drawCutLine(ctx, section + gap / 2, width);
+        const ticketY = cardSectionHeight + gap;
+        drawCutLine(ctx, cardSectionHeight + gap / 2, width);
 
         ctx.save();
         ctx.translate(0, ticketY);
         ctx.fillStyle = "#fff";
         ctx.strokeStyle = "#111";
         ctx.lineWidth = 4;
-        ctx.strokeRect(pad, pad, width - pad * 2, section - pad * 2);
+        ctx.strokeRect(pad, pad, width - pad * 2, ticketSectionHeight - pad * 2);
 
         ctx.fillStyle = "#111";
         ctx.textAlign = "center";
