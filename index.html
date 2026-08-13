@@ -2037,9 +2037,15 @@ create table if not exists public.nomu_print_jobs (
   printed_at timestamptz,
   status text not null default 'pending' check (status in ('pending', 'printing', 'printed', 'failed')),
   order_no text,
-  image_data_url text not null,
+  image_data_url text,
+  fortune_text text,
+  reward_text text,
   error_message text
 );
+
+alter table public.nomu_print_jobs alter column image_data_url drop not null;
+alter table public.nomu_print_jobs add column if not exists fortune_text text;
+alter table public.nomu_print_jobs add column if not exists reward_text text;
 
 alter table public.nomu_print_jobs enable row level security;
 
@@ -2628,6 +2634,26 @@ using (bucket_id = 'nomu-cards');`;
         const { data } = client.storage.from(config.bucket).getPublicUrl(path);
         if (!data?.publicUrl) throw new Error("สร้างลิงก์ไฟล์ใบเสร็จไม่สำเร็จ");
         return data.publicUrl;
+      }
+
+      function composeBridgePhotoCanvas() {
+        const image = selected?.img;
+        if (!image?.src || !(image.naturalWidth || image.width)) return null;
+        const width = 576;
+        const height = 410;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+        const scale = Math.max(width / sourceWidth, height / sourceHeight);
+        const drawWidth = sourceWidth * scale;
+        const drawHeight = sourceHeight * scale;
+        ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+        return canvas;
       }
 
       function renderUsageRows(rows = []) {
@@ -3795,14 +3821,19 @@ using (bucket_id = 'nomu-cards');`;
         try {
           printStatus.textContent = "กำลังเตรียมงานพิมพ์…";
           printCard.disabled = true;
-          const receiptCanvas = composeBridgeReceiptCanvas();
           const client = getSupabaseClient(config);
-          printStatus.textContent = "กำลังอัปโหลดงานพิมพ์…";
-          const imageUrl = await uploadPrintJobToSupabase(receiptCanvas, config);
+          const photoCanvas = composeBridgePhotoCanvas();
+          let imageUrl = "";
+          if (photoCanvas) {
+            printStatus.textContent = "กำลังอัปโหลดรูป…";
+            imageUrl = await uploadPrintJobToSupabase(photoCanvas, config);
+          }
           printStatus.textContent = "กำลังส่งงานไป Windows Print Bridge…";
           const { error } = await client.from("nomu_print_jobs").insert({
             order_no: storageGet("nomuCurrentOrder") || "",
-            image_data_url: imageUrl,
+            image_data_url: imageUrl || null,
+            fortune_text: fortuneText.textContent || selected?.fortune || "",
+            reward_text: currentReward || "",
             status: "pending"
           });
           if (error) throw error;
