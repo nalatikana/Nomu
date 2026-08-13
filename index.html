@@ -3359,6 +3359,78 @@ using (bucket_id = 'nomu-cards');`;
         return receiptCanvas;
       }
 
+      function drawCoverImage(ctx, image, x, y, width, height) {
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+        if (!sourceWidth || !sourceHeight) return false;
+        const scale = Math.max(width / sourceWidth, height / sourceHeight);
+        const drawWidth = sourceWidth * scale;
+        const drawHeight = sourceHeight * scale;
+        ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+        return true;
+      }
+
+      // The thermal receipt intentionally excludes the decorative card frame,
+      // QR code, and full-page background. This keeps the photo and fortune
+      // readable at 80 mm while using much less paper.
+      function composeBridgeReceiptCanvas() {
+        const width = 576;
+        const pad = 24;
+        const contentWidth = width - pad * 2;
+        const photo = selected?.img;
+        const hasPhoto = Boolean(photo?.src && (photo.naturalWidth || photo.width));
+        const photoHeight = hasPhoto ? 410 : 0;
+        const message = fortuneText.textContent || selected?.fortune || "";
+        const reward = currentReward || "";
+        const textHeight = message.length > 34 ? 148 : 104;
+        const rewardHeight = reward ? 58 : 0;
+        const height = 86 + photoHeight + 26 + textHeight + rewardHeight + 70;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#111";
+        ctx.textAlign = "center";
+        ctx.font = "900 36px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText("NOMU", width / 2, 48);
+        ctx.font = "600 15px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText("DAILY FORTUNE", width / 2, 72);
+
+        let y = 86;
+        if (hasPhoto) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(pad, y, contentWidth, photoHeight);
+          ctx.clip();
+          drawCoverImage(ctx, photo, pad, y, contentWidth, photoHeight);
+          ctx.restore();
+          y += photoHeight + 24;
+        }
+
+        ctx.strokeStyle = "#111";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(width - pad, y);
+        ctx.stroke();
+        y += 36;
+        ctx.font = "700 30px Kanit, Arial, sans-serif";
+        ctx.fillStyle = "#111";
+        drawCenteredLines(ctx, message, width / 2, y, contentWidth, 40, 3);
+        y += textHeight - 18;
+        if (reward) {
+          ctx.font = "800 24px Kanit, Arial, sans-serif";
+          ctx.fillText(reward, width / 2, y);
+          y += rewardHeight;
+        }
+        ctx.font = "600 17px Raleway, Kanit, Arial, sans-serif";
+        ctx.fillText(`Order: ${storageGet("nomuCurrentOrder") || "-"}`, width / 2, height - 28);
+        return canvas;
+      }
+
       function composePrintPages(cardCanvas) {
         const size = 576;
         const pad = 22;
@@ -3707,9 +3779,7 @@ using (bucket_id = 'nomu-cards');`;
         try {
           printStatus.textContent = "กำลังเตรียมงานพิมพ์…";
           printCard.disabled = true;
-          const cardCanvas = await renderSelectedCard({ scale: 1 });
-          if (!cardCanvas) return;
-          const receiptCanvas = composeReceiptCanvas(cardCanvas);
+          const receiptCanvas = composeBridgeReceiptCanvas();
           const client = getSupabaseClient(config);
           printStatus.textContent = "กำลังส่งงานไป Windows Print Bridge…";
           const { error } = await client.from("nomu_print_jobs").insert({
