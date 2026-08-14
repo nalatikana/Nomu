@@ -510,6 +510,7 @@
       border: 0;
       border-radius: 0;
       background: transparent;
+      white-space: pre-line;
     }
 
     .card-front.has-image {
@@ -1210,6 +1211,7 @@
       font-weight: 800;
       color: #fffdf4;
       text-shadow: 0 0 18px rgba(248, 212, 119, .32);
+      white-space: pre-line;
     }
 
     .ai-reading {
@@ -2502,6 +2504,12 @@ using (bucket_id = 'nomu-cards');`;
           .filter(Boolean);
       }
 
+      // Admin users can use Enter, \n, or /n for a deliberate line break.
+      // Keep it as a real newline so the card preview and Print Bridge match.
+      function normalizeDisplayBreaks(value) {
+        return String(value || "").replace(/\\n|\/n/g, "\n");
+      }
+
       const storageFallback = {};
 
       function storageGet(key) {
@@ -3013,13 +3021,14 @@ using (bucket_id = 'nomu-cards');`;
         const card = document.createElement("article");
         card.className = "tarot-card";
         card.dataset.index = index;
-        card.dataset.fortune = fortunes[index % fortunes.length];
+        const fortune = normalizeDisplayBreaks(fortunes[index % fortunes.length]);
+        card.dataset.fortune = fortune;
         card.innerHTML = `
           <div class="card-shell">
             <div class="card-face card-back"></div>
             <div class="card-face card-front">
               <img alt="">
-              <div class="fortune-mini">${fortunes[index % fortunes.length]}</div>
+              <div class="fortune-mini">${escapeHtml(fortune).replace(/\n/g, "<br>")}</div>
             </div>
             <div class="glow-burst"></div>
           </div>
@@ -3039,7 +3048,7 @@ using (bucket_id = 'nomu-cards');`;
           rot: rand(-18, 18),
           z: rand(-110, 120),
           revealed: false,
-          fortune: fortunes[index % fortunes.length]
+          fortune
         };
         card.addEventListener("pointerdown", event => {
           if (selected) return;
@@ -3310,19 +3319,18 @@ using (bucket_id = 'nomu-cards');`;
       }
 
       function drawCenteredLines(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
-        const words = String(text || "").split(/\s+/).filter(Boolean);
         const lines = [];
-        let line = "";
-        words.forEach(word => {
-          const next = line ? `${line} ${word}` : word;
-          if (ctx.measureText(next).width <= maxWidth || !line) {
-            line = next;
-          } else {
-            lines.push(line);
-            line = word;
-          }
+        normalizeDisplayBreaks(text).split(/\r?\n/).forEach(paragraph => {
+          const words = paragraph.split(/\s+/).filter(Boolean);
+          let line = "";
+          words.forEach(word => {
+            const next = line ? `${line} ${word}` : word;
+            if (ctx.measureText(next).width <= maxWidth || !line) line = next;
+            else { lines.push(line); line = word; }
+          });
+          if (line) lines.push(line);
+          else if (!words.length) lines.push("");
         });
-        if (line) lines.push(line);
         lines.slice(0, maxLines).forEach((item, index) => {
           ctx.fillText(item, x, y + index * lineHeight);
         });
